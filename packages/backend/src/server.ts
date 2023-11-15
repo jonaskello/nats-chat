@@ -1,22 +1,12 @@
 import express from "express";
 import cookieParser from "cookie-parser";
-import fs from "fs/promises";
-import path from "path";
-import { fileURLToPath } from "url";
-import { MyAuthToken, Data } from "@nats-chat/shared";
+import { MyAuthToken, Data, readData } from "@nats-chat/shared";
 
 const app = express();
 const port = 3050;
 const cookieName = "myCookie";
 
 const data: Data = await readData();
-
-async function readData(): Promise<Data> {
-  const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  const rawData = await fs.readFile(path.join(__dirname, "../../../data.json"), "utf8");
-  const data: Data = JSON.parse(rawData);
-  return data;
-}
 
 app.use(cookieParser());
 app.use(express.json());
@@ -37,7 +27,6 @@ app.post("/login", (req, res, next) => {
   res.send(`Login successful`);
 });
 
-// Remove cookie
 app.get("/logout", (req, res, next) => {
   res.clearCookie(cookieName);
   res.send(`<div>Logged out</div> <div><a href="/">Continue</a></div>`);
