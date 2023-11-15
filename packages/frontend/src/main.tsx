@@ -4,34 +4,41 @@ import * as Nats from "nats.ws";
 
 const container = document.getElementById("root");
 const root = ReactDomClient.createRoot(container!);
-root.render(<Index />);
+root.render(<Main />);
 
 type NatsConnectionState = NatsConnectionFailed | NatsConnectionConnecting | NatsConnectionConnected;
 type NatsConnectionFailed = {
-  type: "Failed";
-  error: string;
+  readonly type: "Failed";
+  readonly error: string;
 };
 type NatsConnectionConnecting = {
-  type: "Connecting";
+  readonly type: "Connecting";
 };
 type NatsConnectionConnected = {
-  type: "Connected";
-  connection: Nats.NatsConnection;
+  readonly type: "Connected";
+  readonly connection: Nats.NatsConnection;
 };
 
 type Rooms = Record<string, Room>;
 
 type Room = {
-  subscription: Nats.Subscription;
-  messages: string;
+  readonly subscription: Nats.Subscription;
+  readonly messages: string;
 };
 
-function Index() {
+type State = {
+  readonly natsConnectionState: NatsConnectionState;
+  readonly rooms: Rooms;
+  readonly messageText: string;
+};
+
+function Main() {
   const natsUrl = "ws://localhost:9228";
-  const [natsConnectionState, setNatsConnectionState] = useState<NatsConnectionState>({ type: "Connecting" });
-  const [messageText, setMessageText] = useState<string>("/join olle");
-  const [messageResult, setMessageResult] = useState<string>("");
+  const [state, setState] = useState<State>({ natsConnectionState: { type: "Connecting" }, rooms: {}, messageText: "/join olle" });
+  // const [natsConnectionState, setNatsConnectionState] = useState<NatsConnectionState>({ type: "Connecting" });
+  // const [messageText, setMessageText] = useState<string>("/join olle");
   const [rooms, setRooms] = useState<Rooms>({});
+  const [messageResult, setMessageResult] = useState<string>("");
   const roomsRef = useRef<Rooms>();
   roomsRef.current = rooms;
   const [selectedRoom, setSelectedRoom] = useState<string>("");
@@ -47,10 +54,12 @@ function Index() {
         }
         // nc = await Nats.connect({ servers: natsUrl, user: "alice", pass: "alice" });
         nc = await Nats.connect({ servers: natsUrl, token: natsCookieValue });
-        setNatsConnectionState({ type: "Connected", connection: nc });
+        // setNatsConnectionState({ type: "Connected", connection: nc });
+        setState({ ...state, natsConnectionState: { type: "Connected", connection: nc } });
       } catch (ex) {
         console.log("error while connecting");
-        setNatsConnectionState({ type: "Failed", error: ex.message });
+        // setNatsConnectionState({ type: "Failed", error: ex.message });
+        setState({ ...state, natsConnectionState: { type: "Failed", error: ex.message } });
       }
     };
     connect();
@@ -59,6 +68,9 @@ function Index() {
       nc && nc.close();
     };
   }, [natsUrl]);
+
+  ///
+  const { natsConnectionState } = state;
 
   if (natsConnectionState.type === "Connecting") {
     return <div>Connecting...</div>;
@@ -69,8 +81,6 @@ function Index() {
 
   return (
     <div>
-      INDEX!
-      <br></br>
       <LoginLogout />
       <br />
       <table>
@@ -94,12 +104,12 @@ function Index() {
       <br />
       <br />
       <div>
-        <input type="text" size={20} value={messageText} onChange={(e) => setMessageText(e.target.value)} />
+        <input type="text" size={20} value={state.messageText} onChange={(e) => setState({ ...state, messageText: e.target.value })} />
         <button
           onClick={() => {
-            const result = sendMessage(natsConnectionState.connection, messageText, selectedRoom, roomsRef, setRooms);
+            const result = sendMessage(natsConnectionState.connection, state.messageText, selectedRoom, roomsRef, setRooms);
             setMessageResult(result);
-            setMessageText("");
+            setState({ ...state, messageText: "" });
           }}
         >
           Send
@@ -161,7 +171,7 @@ function sendMessage(
             console.log("room", room, "state", roomState);
             if (roomState) {
               const sc = Nats.StringCodec();
-              setRooms({ ...rooms, [room]: { ...roomState, messages: (roomState.messages += sc.decode(msg.data) + "\n") } });
+              setRooms({ ...rooms, [room]: { ...roomState, messages: roomState.messages + sc.decode(msg.data) + "\n" } });
             }
           },
         });
