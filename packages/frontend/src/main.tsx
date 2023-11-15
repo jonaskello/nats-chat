@@ -256,11 +256,23 @@ function sendMessage(stateRef: React.MutableRefObject<State | undefined>, setSta
 
 function createSubscriptionCallback(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void) {
   return (err: Nats.NatsError | null, msg: Nats.Msg) => {
-    if (err) {
-      throw new Error(`Error while receiving message ${err.code}, ${err.message}`);
-    }
     const state = stateRef.current;
     if (state === undefined) {
+      return;
+    }
+
+    if (err) {
+      const room = err.permissionContext?.subject;
+      if (room === undefined) {
+        throw new Error("permissionContext was undefined");
+      }
+      console.log("err.permissionContext?.subject", err?.permissionContext?.subject);
+      const newState: State = {
+        ...state,
+        subscribedRooms: { ...state.subscribedRooms, [room]: { type: "Error", error: err?.message ?? "" } },
+      };
+      console.error(err.message);
+      setState(newState);
       return;
     }
     const room = msg.subject;
