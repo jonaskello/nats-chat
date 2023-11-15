@@ -78,12 +78,6 @@ async function msgHandler(req: Nats.Msg, enc: TextEncoder, dec: TextDecoder, use
   const userNkey = rc.nats.user_nkey;
   const serverId = rc.nats.server_id.id;
 
-  // // Check if the user exists.
-  // const userProfile = users[rc.nats.connect_opts.user!];
-  // if (!userProfile) {
-  //   return respondMsg(req, userNkey, serverId, "", "user not found");
-  // }
-
   // Try parse token
   const authToken = rc.nats.connect_opts.auth_token;
   if (!authToken) {
@@ -107,6 +101,17 @@ async function msgHandler(req: Nats.Msg, enc: TextEncoder, dec: TextDecoder, use
   //   return respondMsg(req, userNkey, serverId, "", "invalid credentials");
   // }
 
+  // Check if the user exists.
+  const userProfile = userData.users[parsedAuthToken.user];
+  if (!userProfile) {
+    return respondMsg(req, userNkey, serverId, "", "user not found");
+  }
+
+  // Gather permissions for user
+  const allowedRooms = Object.entries(userData.rooms)
+    .filter(([roomName, room]) => room.users.includes(parsedAuthToken.user))
+    .map(([roomName, room]) => roomName);
+
   // Prepare a user JWT.
   // Sign it with the issuer key since this is non-operator mode.
   let ejwt: string;
@@ -117,12 +122,11 @@ async function msgHandler(req: Nats.Msg, enc: TextEncoder, dec: TextDecoder, use
       issuerKeyPair,
       // Set the associated permissions if present.
       // userProfile.permissions,
-      { pub: { allow: ["all1"], deny: [] }, sub: { allow: ["all1"], deny: [] } },
+      { pub: { allow: ["public", ...allowedRooms], deny: [] }, sub: { allow: ["public", ...allowedRooms], deny: [] } },
       // {},
       {
         // Audience contains the account in non-operator mode.
-        // aud: userProfile.account,
-        aud: "APP",
+        aud: userProfile.account,
       }
     );
   } catch (e) {

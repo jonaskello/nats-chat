@@ -32,20 +32,11 @@ type RoomSubscriptionStateError = {
   readonly error: string;
 };
 
-// type State = {
-//   readonly loggedIn: boolean;
-//   readonly natsConnectionState: NatsConnectionState;
-//   readonly availableRooms: ReadonlyArray<string>;
-//   readonly subscribedRooms: Record<string, RoomSubscriptionState>;
-//   readonly messageText: string;
-//   readonly messageResult: string;
-//   readonly selectedRoom: string;
-// };
-
 type State = LoggedInState | NotLoggedInState;
 
 type LoggedInState = {
   readonly type: "LoggedInState";
+  readonly loggedInUser: string;
   readonly natsConnectionState: NatsConnectionState;
   readonly availableRooms: ReadonlyArray<string>;
   readonly subscribedRooms: Record<string, RoomSubscriptionState>;
@@ -77,7 +68,12 @@ function Main() {
 
   return (
     <div>
-      <Logout state={state} setState={setState} />
+      <span>
+        {state.loggedInUser}
+        &nbsp;
+        <a href="/logout">logout</a>
+      </span>
+      <br />
       <br />
       <Chat stateRef={stateRef} setState={setState} />
     </div>
@@ -149,7 +145,6 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
     return (
       <div>
         <div>Connection failed: {natsConnectionState.error}</div> <br />
-        <Logout state={state} setState={setState} />
       </div>
     );
   }
@@ -241,6 +236,7 @@ function Login({ state, setState }: { state: NotLoggedInState; setState: (state:
           if (resp.status === 200) {
             setState({
               type: "LoggedInState",
+              loggedInUser: state.user,
               natsConnectionState: { type: "Connecting" },
               availableRooms: [],
               subscribedRooms: {},
@@ -260,13 +256,7 @@ function Login({ state, setState }: { state: NotLoggedInState; setState: (state:
 }
 
 function Logout({ state, setState }: { state: State; setState: (state: State) => void }) {
-  return (
-    <div>
-      <div>
-        <a href="/logout">logout</a>
-      </div>
-    </div>
-  );
+  return;
 }
 
 function leaveRoom(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void): void {
