@@ -32,20 +32,8 @@ type RoomSubscriptionStateError = {
   readonly error: string;
 };
 
-type State = {
-  readonly loggedIn: boolean;
-  readonly natsConnectionState: NatsConnectionState;
-  readonly availableRooms: ReadonlyArray<string>;
-  readonly subscribedRooms: Record<string, RoomSubscriptionState>;
-  readonly messageText: string;
-  readonly messageResult: string;
-  readonly selectedRoom: string;
-};
-
-// type State = LoggedInState | NotLoggedInState;
-
-// type LoggedInState = {
-//   readonly type: "LoggedInState";
+// type State = {
+//   readonly loggedIn: boolean;
 //   readonly natsConnectionState: NatsConnectionState;
 //   readonly availableRooms: ReadonlyArray<string>;
 //   readonly subscribedRooms: Record<string, RoomSubscriptionState>;
@@ -54,47 +42,38 @@ type State = {
 //   readonly selectedRoom: string;
 // };
 
-// type NotLoggedInState = {
-//   readonly type: "NotLoggedInState";
-//   readonly user: string;
-//   readonly pass: string;
-//   readonly error: string;
-// };
+type State = LoggedInState | NotLoggedInState;
+
+type LoggedInState = {
+  readonly type: "LoggedInState";
+  readonly natsConnectionState: NatsConnectionState;
+  readonly availableRooms: ReadonlyArray<string>;
+  readonly subscribedRooms: Record<string, RoomSubscriptionState>;
+  readonly messageText: string;
+  readonly messageResult: string;
+  readonly selectedRoom: string;
+};
+
+type NotLoggedInState = {
+  readonly type: "NotLoggedInState";
+  readonly user: string;
+  readonly pass: string;
+  readonly error: string;
+};
 
 function Main() {
   const [state, setState] = useState<State>({
-    // type: "LoggedInState",
-    loggedIn: false,
-    natsConnectionState: { type: "Connecting" },
-    availableRooms: [],
-    subscribedRooms: {},
-    messageText: "",
-    messageResult: "",
-    selectedRoom: "",
+    type: "NotLoggedInState",
+    user: "",
+    pass: "",
+    error: "",
   });
   const stateRef = useRef<State>();
   stateRef.current = state;
 
-  // Get rooms
-  useEffect(() => {
-    fetch("/rooms")
-      .then((response) => response.json())
-      .then((data) => {
-        const currentState = stateRef.current;
-        if (!currentState) return;
-        const newState: State = { ...currentState, availableRooms: data, selectedRoom: data[0] };
-        console.log("newState", newState);
-        setState(newState);
-      })
-      .catch((error) => console.log(error));
-  }, []);
-
-  ///
-  if (!state.loggedIn) {
+  if (state.type !== "LoggedInState") {
     return <Login state={state} setState={setState} />;
   }
-
-  ///
 
   return (
     <div>
@@ -107,9 +86,26 @@ function Main() {
 
 function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State | undefined>; setState: (state: State) => void }) {
   const state = stateRef.current;
-  if (state === undefined) {
+  if (state === undefined || state.type !== "LoggedInState") {
     return <div>state is undefined</div>;
   }
+
+  // Get rooms
+  useEffect(() => {
+    fetch("/rooms")
+      .then((response) => response.json())
+      .then((data) => {
+        const currentState = stateRef.current;
+        if (currentState === undefined || currentState.type !== "LoggedInState") {
+          return;
+        }
+        const newState: LoggedInState = { ...currentState, availableRooms: data, selectedRoom: data[0] };
+        console.log("newState", newState);
+        setState(newState);
+      })
+      .catch((error) => console.log(error));
+  }, []);
+
   // Connect to NATS
   const natsUrl = "ws://localhost:9228";
   useEffect(() => {
@@ -124,12 +120,16 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
         // nc = await Nats.connect({ servers: natsUrl, user: "alice", pass: "alice" });
         nc = await Nats.connect({ servers: natsUrl, token: natsCookieValue });
         const currentState = stateRef.current;
-        if (!currentState) return;
+        if (currentState === undefined || currentState.type !== "LoggedInState") {
+          return;
+        }
         setState({ ...currentState, natsConnectionState: { type: "Connected", connection: nc } });
       } catch (ex) {
         console.log("error while connecting");
         const currentState = stateRef.current;
-        if (!currentState) return;
+        if (currentState === undefined || currentState.type !== "LoggedInState") {
+          return;
+        }
         setState({ ...currentState, natsConnectionState: { type: "Failed", error: ex.message } });
       }
     };
@@ -138,7 +138,7 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
       console.log("CLOSING NATS CONNECTION!");
       nc && nc.close();
     };
-  }, [state.loggedIn]);
+  }, []);
 
   const { natsConnectionState } = state;
 
@@ -154,14 +154,14 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
     );
   }
 
-  return <ChatRooms stateRef={stateRef} setState={setState} />;
-}
+  //   return <ChatRooms stateRef={stateRef} setState={setState} />;
+  // }
 
-function ChatRooms({ stateRef, setState }: { stateRef: React.MutableRefObject<State | undefined>; setState: (state: State) => void }) {
-  const state = stateRef.current;
-  if (state === undefined) {
-    return <div>no state</div>;
-  }
+  // function ChatRooms({ stateRef, setState }: { stateRef: React.MutableRefObject<State | undefined>; setState: (state: State) => void }) {
+  //   const state = stateRef.current;
+  //   if (state === undefined) {
+  //     return <div>no state</div>;
+  //   }
   const selectedRoomSubState = state.subscribedRooms[state.selectedRoom];
   return (
     <div>
@@ -231,7 +231,15 @@ function Login({ state, setState }: { state: State; setState: (state: State) => 
         onClick={async () => {
           // Fetching /login  will cause the cookie to be set
           await fetch("/login", { method: "POST", body: JSON.stringify({ user: "", pass: "" }) });
-          setState({ ...state, loggedIn: true });
+          setState({
+            type: "LoggedInState",
+            natsConnectionState: { type: "Connecting" },
+            availableRooms: [],
+            subscribedRooms: {},
+            messageText: "",
+            messageResult: "",
+            selectedRoom: "",
+          });
         }}
       >
         Login
@@ -252,7 +260,7 @@ function Logout({ state, setState }: { state: State; setState: (state: State) =>
 
 function leaveRoom(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void): void {
   const state = stateRef.current;
-  if (state === undefined) {
+  if (state === undefined || state.type !== "LoggedInState") {
     return;
   }
   const room = state.selectedRoom;
@@ -271,7 +279,7 @@ function leaveRoom(stateRef: React.MutableRefObject<State | undefined>, setState
 
 function joinRoom(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void): void {
   const state = stateRef.current;
-  if (state === undefined) {
+  if (state === undefined || state.type !== "LoggedInState") {
     return;
   }
   const natsConnectionState = state.natsConnectionState;
@@ -294,7 +302,7 @@ function joinRoom(stateRef: React.MutableRefObject<State | undefined>, setState:
 
 function sendMessage(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void): void {
   const state = stateRef.current;
-  if (state === undefined) {
+  if (state === undefined || state.type !== "LoggedInState") {
     return;
   }
   const natsConnectionState = state.natsConnectionState;
@@ -316,10 +324,9 @@ function sendMessage(stateRef: React.MutableRefObject<State | undefined>, setSta
 function createSubscriptionCallback(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void) {
   return (err: Nats.NatsError | null, msg: Nats.Msg) => {
     const state = stateRef.current;
-    if (state === undefined) {
+    if (state === undefined || state.type !== "LoggedInState") {
       return;
     }
-
     if (err) {
       const room = err.permissionContext?.subject;
       if (room === undefined) {
