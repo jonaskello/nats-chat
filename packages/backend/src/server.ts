@@ -1,6 +1,9 @@
 import express from "express";
 import cookieParser from "cookie-parser";
-import { MyAuthToken } from "@nats-chat/shared";
+import fs from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
+import { MyAuthToken, Data } from "@nats-chat/shared";
 
 const app = express();
 const port = 3050;
@@ -31,6 +34,14 @@ app.get("/logout", (req, res, next) => {
   res.clearCookie(cookieName);
   console.log("cookie cleared");
   res.send(`<div>Logged out</div> <div><a href="/">Continue</a></div>`);
+});
+
+app.get("/rooms", async (req, res) => {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const data = await fs.readFile(path.join(__dirname, "../../../data.json"), "utf8");
+  const parsed: Data = JSON.parse(data);
+  const rooms = Object.keys(parsed.rooms);
+  res.send(rooms);
 });
 
 app.get("/", (req, res) => {

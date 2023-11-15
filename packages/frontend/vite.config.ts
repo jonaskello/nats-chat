@@ -11,6 +11,7 @@ export default defineConfig({
       "/nats": { target: "http://127.0.0.1:9228", secure: false, ws: true },
       "/login": { target: "http://127.0.0.1:3050", secure: false },
       "/logout": { target: "http://127.0.0.1:3050", secure: false },
+      "/rooms": { target: "http://127.0.0.1:3050", secure: false },
     },
   },
 });
