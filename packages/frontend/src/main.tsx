@@ -19,16 +19,15 @@ type NatsConnectionConnected = {
   readonly connection: Nats.NatsConnection;
 };
 
-type Rooms = Record<string, Room>;
-
-type Room = {
+type SubscribedRoom = {
   readonly subscription: Nats.Subscription;
   readonly messages: string;
 };
 
 type State = {
   readonly natsConnectionState: NatsConnectionState;
-  readonly rooms: Rooms;
+  readonly availableRooms: ReadonlyArray<string>;
+  readonly subscribedRooms: Record<string, SubscribedRoom>;
   readonly messageText: string;
   readonly messageResult: string;
   readonly selectedRoom: string;
@@ -38,7 +37,8 @@ function Main() {
   const natsUrl = "ws://localhost:9228";
   const [state, setState] = useState<State>({
     natsConnectionState: { type: "Connecting" },
-    rooms: {},
+    availableRooms: [],
+    subscribedRooms: {},
     messageText: "/join olle",
     messageResult: "",
     selectedRoom: "",
@@ -46,6 +46,21 @@ function Main() {
   const stateRef = useRef<State>();
   stateRef.current = state;
 
+  // Get rooms
+  useEffect(() => {
+    fetch("/rooms")
+      .then((response) => response.json())
+      .then((data) => {
+        const currentState = stateRef.current;
+        if (!currentState) return;
+        const newState = { ...currentState, availableRooms: data };
+        console.log("newState", newState);
+        setState(newState);
+      })
+      .catch((error) => console.log(error));
+  }, []);
+
+  // Connect to NATS
   useEffect(() => {
     let nc: Nats.NatsConnection;
     const connect = async () => {
@@ -57,10 +72,14 @@ function Main() {
         }
         // nc = await Nats.connect({ servers: natsUrl, user: "alice", pass: "alice" });
         nc = await Nats.connect({ servers: natsUrl, token: natsCookieValue });
-        setState({ ...state, natsConnectionState: { type: "Connected", connection: nc } });
+        const currentState = stateRef.current;
+        if (!currentState) return;
+        setState({ ...currentState, natsConnectionState: { type: "Connected", connection: nc } });
       } catch (ex) {
         console.log("error while connecting");
-        setState({ ...state, natsConnectionState: { type: "Failed", error: ex.message } });
+        const currentState = stateRef.current;
+        if (!currentState) return;
+        setState({ ...currentState, natsConnectionState: { type: "Failed", error: ex.message } });
       }
     };
     connect();
@@ -84,12 +103,25 @@ function Main() {
     <div>
       <LoginLogout />
       <br />
+      <Chat stateRef={stateRef} setState={setState} />
+    </div>
+  );
+}
+
+function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State | undefined>; setState: (state: State) => void }) {
+  const state = stateRef.current;
+  if (state === undefined) {
+    return <div>no state</div>;
+  }
+  console.log("CHAT state", state);
+  return (
+    <div>
       <table>
         <tbody>
           <tr>
             <td>
               <select size={10} value={state.selectedRoom} onChange={(e) => setState({ ...state, selectedRoom: e.target.value })}>
-                {Object.keys(state.rooms).map((r) => (
+                {state.availableRooms.map((r) => (
                   <option key={r} value={r}>
                     #{r}
                   </option>
@@ -97,7 +129,7 @@ function Main() {
               </select>
             </td>
             <td>
-              <textarea cols={40} rows={11} value={state.rooms[state.selectedRoom]?.messages}></textarea>
+              <textarea cols={40} rows={11} value={state.subscribedRooms[state.selectedRoom]?.messages}></textarea>
             </td>
           </tr>
         </tbody>
@@ -164,7 +196,7 @@ function sendMessage(stateRef: React.MutableRefObject<State | undefined>, setSta
           messageResult: `Joined room ${room}`,
           messageText: "",
           selectedRoom: room,
-          rooms: { ...state.rooms, [room]: { subscription: sub, messages: "" } },
+          subscribedRooms: { ...state.subscribedRooms, [room]: { subscription: sub, messages: "" } },
         });
         return;
       }
@@ -174,10 +206,10 @@ function sendMessage(stateRef: React.MutableRefObject<State | undefined>, setSta
           setState({ ...state, messageResult: `No room`, messageText: "" });
           return;
         }
-        const theRoom = state.rooms[room];
+        const theRoom = state.subscribedRooms[room];
         theRoom?.subscription.drain();
-        delete state.rooms[room];
-        setState({ ...state, messageResult: `Left room ${room}`, rooms: state.rooms });
+        delete state.subscribedRooms[room];
+        setState({ ...state, messageResult: `Left room ${room}`, subscribedRooms: state.subscribedRooms });
         return;
       }
       default:
@@ -206,12 +238,12 @@ function createSubscriptionCallback(stateRef: React.MutableRefObject<State | und
       return;
     }
     const room = msg.subject;
-    const roomState = state.rooms[room];
+    const roomState = state.subscribedRooms[room];
     if (roomState) {
       const sc = Nats.StringCodec();
       const newState: State = {
         ...state,
-        rooms: { ...state.rooms, [room]: { ...roomState, messages: roomState.messages + sc.decode(msg.data) + "\n" } },
+        subscribedRooms: { ...state.subscribedRooms, [room]: { ...roomState, messages: roomState.messages + sc.decode(msg.data) + "\n" } },
       };
       setState(newState);
     }
