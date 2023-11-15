@@ -163,7 +163,7 @@ async function msgHandler(
       issuerKeyPair,
       // Set the associated permissions if present.
       // userProfile.permissions,
-      { pub: { allow: [], deny: ["*"] }, sub: { allow: [], deny: ["*"] } },
+      { pub: { allow: ["all1"], deny: [] }, sub: { allow: ["all1"], deny: [] } },
       // {},
       {
         // Audience contains the account in non-operator mode.

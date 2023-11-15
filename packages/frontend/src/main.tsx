@@ -264,14 +264,13 @@ function createSubscriptionCallback(stateRef: React.MutableRefObject<State | und
     if (err) {
       const room = err.permissionContext?.subject;
       if (room === undefined) {
-        throw new Error("permissionContext was undefined");
+        throw new Error(`Subscription error without permissionContext: ${err.code}, ${err.message}`);
       }
       console.log("err.permissionContext?.subject", err?.permissionContext?.subject);
       const newState: State = {
         ...state,
-        subscribedRooms: { ...state.subscribedRooms, [room]: { type: "Error", error: err?.message ?? "" } },
+        subscribedRooms: { ...state.subscribedRooms, [room]: { type: "Error", error: err.message ?? "" } },
       };
-      console.error(err.message);
       setState(newState);
       return;
     }
