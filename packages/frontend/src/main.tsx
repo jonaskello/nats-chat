@@ -43,9 +43,9 @@ function Main() {
     messageResult: "",
     selectedRoom: "",
   });
-  const [rooms, setRooms] = useState<Rooms>({});
-  const roomsRef = useRef<Rooms>();
-  roomsRef.current = rooms;
+  console.log("MAIN - State", state);
+  const stateRef = useRef<State>();
+  stateRef.current = state;
 
   useEffect(() => {
     let nc: Nats.NatsConnection;
@@ -92,7 +92,7 @@ function Main() {
           <tr>
             <td>
               <select size={10} value={state.selectedRoom} onChange={(e) => setState({ ...state, selectedRoom: e.target.value })}>
-                {Object.keys(rooms).map((r) => (
+                {Object.keys(state.rooms).map((r) => (
                   <option key={r} value={r}>
                     #{r}
                   </option>
@@ -100,7 +100,7 @@ function Main() {
               </select>
             </td>
             <td>
-              <textarea cols={40} rows={11} value={rooms[state.selectedRoom]?.messages}></textarea>
+              <textarea cols={40} rows={11} value={state.rooms[state.selectedRoom]?.messages}></textarea>
             </td>
           </tr>
         </tbody>
@@ -109,15 +109,7 @@ function Main() {
       <br />
       <div>
         <input type="text" size={20} value={state.messageText} onChange={(e) => setState({ ...state, messageText: e.target.value })} />
-        <button
-          onClick={() => {
-            const result = sendMessage(natsConnectionState.connection, state.messageText, state.selectedRoom, roomsRef, setRooms);
-            setState({ ...state, messageResult: result });
-            setState({ ...state, messageText: "" });
-          }}
-        >
-          Send
-        </button>
+        <button onClick={() => sendMessage(natsConnectionState.connection, state.messageText, state.selectedRoom, stateRef, setState)}>Send</button>
       </div>
       <div>{state.messageResult}</div>
     </div>
@@ -151,59 +143,82 @@ function sendMessage(
   nc: Nats.NatsConnection,
   message: string,
   room: string,
-  roomsRef: React.MutableRefObject<Rooms | undefined>,
-  setRooms: (rooms: Rooms) => void
-) {
-  const rooms = roomsRef.current;
-  if (rooms === undefined) {
-    return `No rooms`;
+  stateRef: React.MutableRefObject<State | undefined>,
+  setState: (state: State) => void
+): void {
+  const state = stateRef.current;
+  if (state === undefined) {
+    return;
   }
   console.log("message", message);
-  console.log("rooms", rooms);
+  console.log("rooms", state.rooms);
   if (message.startsWith("/")) {
     const cmdParts = message.split(" ");
     switch (cmdParts[0]) {
       case "/join": {
         const room = cmdParts[1]?.trim();
         if (room === undefined || room.length === 0) {
-          return "No room";
+          setState({ ...state, messageResult: `No room`, messageText: "" });
+          return;
         }
         const sub = nc.subscribe(room, {
-          callback: (err, msg) => {
-            console.log("hello there");
-            const roomState = roomsRef.current?.[room];
-            console.log("room", room, "state", roomState);
-            if (roomState) {
-              const sc = Nats.StringCodec();
-              setRooms({ ...rooms, [room]: { ...roomState, messages: roomState.messages + sc.decode(msg.data) + "\n" } });
-            }
-          },
+          callback: createSubscriptionCallback(stateRef, setState),
         });
-        setRooms({ ...rooms, [room]: { subscription: sub, messages: "" } });
-        return `Joined room ${room}`;
+        setState({
+          ...state,
+          messageResult: `Joined room ${room}`,
+          messageText: "",
+          rooms: { ...state.rooms, [room]: { subscription: sub, messages: "" } },
+        });
+        return;
       }
       case "/leave": {
         const room = cmdParts[1]?.trim();
         if (room === undefined || room.length === 0) {
-          return "No room";
+          setState({ ...state, messageResult: `No room`, messageText: "" });
+          return;
         }
-        const theRoom = rooms[room];
+        const theRoom = state.rooms[room];
         theRoom?.subscription.drain();
-        delete rooms[room];
-        setRooms(rooms);
-        return `Left room ${room}`;
+        delete state.rooms[room];
+        setState({ ...state, messageResult: `Left room ${room}`, rooms: state.rooms });
+        return;
       }
       default:
-        return `Invalid commmand ${cmdParts[0]}`;
+        setState({ ...state, messageResult: `Invalid commmand ${cmdParts[0]}` });
+        return;
     }
   } else {
     if (room.length === 0) {
-      return `No room`;
+      setState({ ...state, messageResult: `No room`, messageText: "" });
+      return;
     }
     console.log(`Publishing ${message} to room ${room}`);
     nc.publish(room, message);
-    return `Message sent to room ${room}`;
+    setState({ ...state, messageResult: `Message sent to room ${room}`, messageText: "" });
   }
+}
+
+function createSubscriptionCallback(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void) {
+  return (err: Nats.NatsError | null, msg: Nats.Msg) => {
+    console.log("hello there");
+    const state = stateRef.current;
+    if (state === undefined) {
+      return;
+    }
+    const room = msg.subject;
+    const roomState = state.rooms[room];
+    console.log("room", room, "state", roomState);
+    if (roomState) {
+      const sc = Nats.StringCodec();
+      const newState: State = {
+        ...state,
+        rooms: { ...state.rooms, [room]: { ...roomState, messages: roomState.messages + sc.decode(msg.data) + "\n" } },
+      };
+      console.log("newState", newState);
+      setState(newState);
+    }
+  };
 }
 
 function getCookie(name: string): string | undefined {
