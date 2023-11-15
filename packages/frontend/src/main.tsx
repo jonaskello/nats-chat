@@ -96,10 +96,9 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
           return;
         }
         const newState: LoggedInState = { ...currentState, availableRooms: data, selectedRoom: data[0] };
-        console.log("newState", newState);
         setState(newState);
       })
-      .catch((error) => console.log(error));
+      .catch((error) => console.error(error));
   }, []);
 
   // Connect to NATS
@@ -121,7 +120,6 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
         }
         setState({ ...currentState, natsConnectionState: { type: "Connected", connection: nc } });
       } catch (ex) {
-        console.log("error while connecting");
         const currentState = stateRef.current;
         if (currentState === undefined || currentState.type !== "LoggedInState") {
           return;
@@ -131,7 +129,6 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
     };
     connect();
     return () => {
-      console.log("CLOSING NATS CONNECTION!");
       nc && nc.close();
     };
   }, []);
@@ -148,15 +145,6 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
       </div>
     );
   }
-
-  //   return <ChatRooms stateRef={stateRef} setState={setState} />;
-  // }
-
-  // function ChatRooms({ stateRef, setState }: { stateRef: React.MutableRefObject<State | undefined>; setState: (state: State) => void }) {
-  //   const state = stateRef.current;
-  //   if (state === undefined) {
-  //     return <div>no state</div>;
-  //   }
   const selectedRoomSubState = state.subscribedRooms[state.selectedRoom];
   return (
     <div>
@@ -173,18 +161,14 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
               </select>
             </td>
             <td>
-              {selectedRoomSubState !== undefined ? (
-                selectedRoomSubState.type === "Subscribed" ? (
-                  <div>
-                    <textarea readOnly cols={40} rows={11} value={selectedRoomSubState.messages}></textarea>
-                    <button onClick={() => leaveRoom(stateRef, setState)}>Leave</button>
-                  </div>
-                ) : (
-                  <div>ERROR: {selectedRoomSubState.error}</div>
-                )
+              {selectedRoomSubState !== undefined && selectedRoomSubState.type === "Subscribed" ? (
+                <div>
+                  <textarea readOnly cols={40} rows={11} value={selectedRoomSubState.messages}></textarea>
+                  <button onClick={() => leaveRoom(stateRef, setState)}>Leave</button>
+                </div>
               ) : (
                 <div>
-                  <div>Not joined</div>
+                  <div>{selectedRoomSubState && selectedRoomSubState.error}</div>
                   <button onClick={() => joinRoom(stateRef, setState)}>Join</button>
                 </div>
               )}
@@ -255,10 +239,6 @@ function Login({ state, setState }: { state: NotLoggedInState; setState: (state:
   );
 }
 
-function Logout({ state, setState }: { state: State; setState: (state: State) => void }) {
-  return;
-}
-
 function leaveRoom(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void): void {
   const state = stateRef.current;
   if (state === undefined || state.type !== "LoggedInState") {
@@ -317,7 +297,6 @@ function sendMessage(stateRef: React.MutableRefObject<State | undefined>, setSta
     setState({ ...state, messageResult: `No room`, messageText: "" });
     return;
   }
-  console.log(`Publishing ${message} to room ${room}`);
   natsConnectionState.connection.publish(room, message);
   setState({ ...state, messageResult: `Message sent to room ${room}`, messageText: "" });
 }
@@ -333,7 +312,6 @@ function createSubscriptionCallback(stateRef: React.MutableRefObject<State | und
       if (room === undefined) {
         throw new Error(`Subscription error without permissionContext: ${err.code}, ${err.message}`);
       }
-      console.log("err.permissionContext?.subject", err?.permissionContext?.subject);
       const newState: State = {
         ...state,
         subscribedRooms: { ...state.subscribedRooms, [room]: { type: "Error", error: err.message ?? "" } },

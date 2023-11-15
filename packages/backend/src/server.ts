@@ -21,7 +21,7 @@ app.post("/login", (req, res, next) => {
     res.send("Invalid user/pass");
     return;
   }
-  const cookieValue: MyAuthToken = { signature: "signature-that-should-be-encrypted", user: "bob" };
+  const cookieValue: MyAuthToken = { signature: "signature-that-should-be-encrypted", user };
   res.cookie(cookieName, JSON.stringify(cookieValue), { maxAge: 900000, httpOnly: false });
   res.statusCode = 200;
   res.send(`Login successful`);
