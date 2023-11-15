@@ -107,7 +107,7 @@ function Main() {
       <br />
       <div>
         <input type="text" size={20} value={state.messageText} onChange={(e) => setState({ ...state, messageText: e.target.value })} />
-        <button onClick={() => sendMessage(natsConnectionState.connection, state.messageText, state.selectedRoom, stateRef, setState)}>Send</button>
+        <button onClick={() => sendMessage(natsConnectionState.connection, state.messageText, stateRef, setState)}>Send</button>
       </div>
       <div>{state.messageResult}</div>
     </div>
@@ -140,7 +140,6 @@ function LoginLogout() {
 function sendMessage(
   nc: Nats.NatsConnection,
   message: string,
-  room: string,
   stateRef: React.MutableRefObject<State | undefined>,
   setState: (state: State) => void
 ): void {
@@ -187,6 +186,7 @@ function sendMessage(
         return;
     }
   } else {
+    const room = state.selectedRoom;
     if (room.length === 0) {
       setState({ ...state, messageResult: `No room`, messageText: "" });
       return;
