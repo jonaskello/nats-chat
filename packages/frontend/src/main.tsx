@@ -30,15 +30,13 @@ type State = {
   readonly natsConnectionState: NatsConnectionState;
   readonly rooms: Rooms;
   readonly messageText: string;
+  readonly messageResult: string;
 };
 
 function Main() {
   const natsUrl = "ws://localhost:9228";
-  const [state, setState] = useState<State>({ natsConnectionState: { type: "Connecting" }, rooms: {}, messageText: "/join olle" });
-  // const [natsConnectionState, setNatsConnectionState] = useState<NatsConnectionState>({ type: "Connecting" });
-  // const [messageText, setMessageText] = useState<string>("/join olle");
+  const [state, setState] = useState<State>({ natsConnectionState: { type: "Connecting" }, rooms: {}, messageText: "/join olle", messageResult: "" });
   const [rooms, setRooms] = useState<Rooms>({});
-  const [messageResult, setMessageResult] = useState<string>("");
   const roomsRef = useRef<Rooms>();
   roomsRef.current = rooms;
   const [selectedRoom, setSelectedRoom] = useState<string>("");
@@ -108,14 +106,14 @@ function Main() {
         <button
           onClick={() => {
             const result = sendMessage(natsConnectionState.connection, state.messageText, selectedRoom, roomsRef, setRooms);
-            setMessageResult(result);
+            setState({ ...state, messageResult: result });
             setState({ ...state, messageText: "" });
           }}
         >
           Send
         </button>
       </div>
-      <div>{messageResult}</div>
+      <div>{state.messageResult}</div>
     </div>
   );
 }
