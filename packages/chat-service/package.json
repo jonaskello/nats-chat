@@ -1,0 +1,19 @@
+{
+  "private": true,
+  "name": "@nats-chat/chat-service",
+  "version": "0.0.0-main",
+  "description": "Server",
+  "author": "Jonas Kello <jonas.kello@gmail.com>",
+  "license": "MIT",
+  "type": "module",
+  "main": "./lib/index.js",
+  "devDependencies": {
+    "@types/node": "^20.9.0"
+  },
+  "dependencies": {
+    "nats": "^2.6.1"
+  },
+  "scripts": {
+    "start": "tsx src/service.ts"
+  }
+}

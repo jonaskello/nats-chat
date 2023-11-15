@@ -1,0 +1,12 @@
+version: "3.8"
+
+services:
+  nats:
+    image: nats:2.10.4-alpine
+    ports:
+      - "4228:4222" # clients
+      - "6228:6222" # routing port for clustering
+      - "8228:8222" # HTTP management port for information reporting
+      - "9228:9222" # websockets
+    volumes:
+      - ./server.conf:/etc/nats/nats-server.conf

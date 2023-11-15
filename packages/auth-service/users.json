@@ -1,0 +1,25 @@
+{
+  "sys": {
+    "pass": "sys",
+    "account": "SYS"
+  },
+  "alice": {
+    "pass": "alice",
+    "account": "APP"
+  },
+  "bob": {
+    "pass": "bob",
+    "account": "APP",
+    "permissions": {
+      "pub": {
+        "allow": ["bob.>"]
+      },
+      "sub": {
+        "allow": ["bob.>"]
+      },
+      "resp": {
+        "max": 1
+      }
+    }
+  }
+}

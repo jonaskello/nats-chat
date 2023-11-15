@@ -1,0 +1,24 @@
+{
+  "private": true,
+  "name": "@nats-chat/frontend",
+  "version": "0.0.0-main",
+  "description": "Frontend",
+  "author": "Jonas Kello <jonas.kello@gmail.com>",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./lib/index.js"
+  },
+  "devDependencies": {
+    "@types/react": "18.2.21",
+    "@types/react-dom": "18.2.6"
+  },
+  "dependencies": {
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "nats.ws": "^1.14.0"
+  },
+  "scripts": {
+    "serve": "vite serve"
+  }
+}

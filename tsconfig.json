@@ -1,0 +1,4 @@
+{
+  "files": [],
+  "references": [{ "path": "packages/auth-service" }, { "path": "packages/frontend" }, { "path": "packages/backend" }, { "path": "packages/shared" }]
+}
