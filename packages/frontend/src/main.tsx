@@ -52,6 +52,11 @@ type NotLoggedInState = {
   readonly error: string;
 };
 
+type ChatMessage = {
+  readonly sender: string;
+  readonly message: string;
+};
+
 function Main() {
   const [state, setState] = useState<State>({
     type: "NotLoggedInState",
@@ -297,7 +302,8 @@ function sendMessage(stateRef: React.MutableRefObject<State | undefined>, setSta
     setState({ ...state, messageResult: `No room`, messageText: "" });
     return;
   }
-  natsConnectionState.connection.publish(room, message);
+  const cm: ChatMessage = { sender: state.loggedInUser, message };
+  natsConnectionState.connection.publish(room, JSON.stringify(cm));
   setState({ ...state, messageResult: `Message sent to room ${room}`, messageText: "" });
 }
 
@@ -323,9 +329,14 @@ function createSubscriptionCallback(stateRef: React.MutableRefObject<State | und
     const roomState = state.subscribedRooms[room];
     if (roomState?.type === "Subscribed") {
       const sc = Nats.StringCodec();
+      const decodedMessage = sc.decode(msg.data);
+      const parsedMessage: ChatMessage = JSON.parse(decodedMessage);
       const newState: State = {
         ...state,
-        subscribedRooms: { ...state.subscribedRooms, [room]: { ...roomState, messages: roomState.messages + sc.decode(msg.data) + "\n" } },
+        subscribedRooms: {
+          ...state.subscribedRooms,
+          [room]: { ...roomState, messages: roomState.messages + parsedMessage.sender + ": " + parsedMessage.message + "\n" },
+        },
       };
       setState(newState);
     }

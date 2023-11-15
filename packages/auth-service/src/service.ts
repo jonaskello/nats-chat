@@ -90,8 +90,8 @@ async function msgHandler(req: Nats.Msg, enc: TextEncoder, dec: TextDecoder, use
 
   // Gather permissions for user
   const allowedRooms = Object.entries(userData.rooms)
-    .filter(([roomName, room]) => room.users.includes(parsedAuthToken.user))
-    .map(([roomName, room]) => roomName);
+    .filter(([, room]) => room.users.includes(parsedAuthToken.user))
+    .map(([roomName]) => roomName);
 
   // Prepare a user JWT.
   let ejwt: string;
