@@ -62,7 +62,6 @@ type State = {
 // };
 
 function Main() {
-  const natsUrl = "ws://localhost:9228";
   const [state, setState] = useState<State>({
     // type: "LoggedInState",
     loggedIn: false,
@@ -90,7 +89,29 @@ function Main() {
       .catch((error) => console.log(error));
   }, []);
 
+  ///
+  if (!state.loggedIn) {
+    return <Login state={state} setState={setState} />;
+  }
+
+  ///
+
+  return (
+    <div>
+      <Logout state={state} setState={setState} />
+      <br />
+      <Chat stateRef={stateRef} setState={setState} />
+    </div>
+  );
+}
+
+function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State | undefined>; setState: (state: State) => void }) {
+  const state = stateRef.current;
+  if (state === undefined) {
+    return <div>state is undefined</div>;
+  }
   // Connect to NATS
+  const natsUrl = "ws://localhost:9228";
   useEffect(() => {
     let nc: Nats.NatsConnection;
     const connect = async () => {
@@ -119,12 +140,6 @@ function Main() {
     };
   }, [state.loggedIn]);
 
-  ///
-  if (!state.loggedIn) {
-    return <Login state={state} setState={setState} />;
-  }
-
-  ///
   const { natsConnectionState } = state;
 
   if (natsConnectionState.type === "Connecting") {
@@ -139,16 +154,6 @@ function Main() {
     );
   }
 
-  return (
-    <div>
-      <Logout state={state} setState={setState} />
-      <br />
-      <ChatRooms stateRef={stateRef} setState={setState} />
-    </div>
-  );
-}
-
-function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State | undefined>; setState: (state: State) => void }) {
   return <ChatRooms stateRef={stateRef} setState={setState} />;
 }
 
