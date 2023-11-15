@@ -1,7 +1,7 @@
 {
   "users": {
-    "alice": { "pass": "alice" },
-    "bob": { "pass": "bob" }
+    "alice": { "pass": "alice", "account": "APP" },
+    "bob": { "pass": "bob", "account": "APP" }
   },
   "rooms": {
     "all1": { "users": ["alice", "bob"] },

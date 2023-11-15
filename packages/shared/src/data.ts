@@ -1,5 +1,6 @@
 export type User = {
   readonly pass: string;
+  readonly account: string;
 };
 
 export type Room = {

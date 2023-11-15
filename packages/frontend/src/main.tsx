@@ -130,7 +130,10 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
             </td>
             <td>
               {state.subscribedRooms[state.selectedRoom] !== undefined ? (
-                <textarea readOnly cols={40} rows={11} value={state.subscribedRooms[state.selectedRoom]?.messages}></textarea>
+                <div>
+                  <textarea readOnly cols={40} rows={11} value={state.subscribedRooms[state.selectedRoom]?.messages}></textarea>
+                  <button onClick={() => leaveRoom(stateRef, setState)}>Leave</button>
+                </div>
               ) : (
                 <div>
                   <div>Not joined</div>
@@ -175,6 +178,23 @@ function LoginLogout() {
   );
 }
 
+function leaveRoom(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void): void {
+  const state = stateRef.current;
+  if (state === undefined) {
+    return;
+  }
+  const room = state.selectedRoom;
+  if (room === undefined || room.length === 0) {
+    setState({ ...state, messageResult: `No room`, messageText: "" });
+    return;
+  }
+  const theRoom = state.subscribedRooms[room];
+  theRoom?.subscription.drain();
+  delete state.subscribedRooms[room];
+  setState({ ...state, messageResult: `Left room ${room}`, subscribedRooms: state.subscribedRooms });
+  return;
+}
+
 function joinRoom(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void): void {
   const state = stateRef.current;
   if (state === undefined) {
@@ -209,53 +229,14 @@ function sendMessage(stateRef: React.MutableRefObject<State | undefined>, setSta
     return;
   }
   const message = state.messageText;
-  if (message.startsWith("/")) {
-    const cmdParts = message.split(" ");
-    switch (cmdParts[0]) {
-      case "/join": {
-        const room = cmdParts[1]?.trim();
-        if (room === undefined || room.length === 0) {
-          setState({ ...state, messageResult: `No room`, messageText: "" });
-          return;
-        }
-        const sub = natsConnectionState.connection.subscribe(room, {
-          callback: createSubscriptionCallback(stateRef, setState),
-        });
-        setState({
-          ...state,
-          messageResult: `Joined room ${room}`,
-          messageText: "",
-          selectedRoom: room,
-          subscribedRooms: { ...state.subscribedRooms, [room]: { subscription: sub, messages: "" } },
-        });
-        return;
-      }
-      case "/leave": {
-        const room = cmdParts[1]?.trim();
-        if (room === undefined || room.length === 0) {
-          setState({ ...state, messageResult: `No room`, messageText: "" });
-          return;
-        }
-        const theRoom = state.subscribedRooms[room];
-        theRoom?.subscription.drain();
-        delete state.subscribedRooms[room];
-        setState({ ...state, messageResult: `Left room ${room}`, subscribedRooms: state.subscribedRooms });
-        return;
-      }
-      default:
-        setState({ ...state, messageResult: `Invalid commmand ${cmdParts[0]}` });
-        return;
-    }
-  } else {
-    const room = state.selectedRoom;
-    if (room.length === 0) {
-      setState({ ...state, messageResult: `No room`, messageText: "" });
-      return;
-    }
-    console.log(`Publishing ${message} to room ${room}`);
-    natsConnectionState.connection.publish(room, message);
-    setState({ ...state, messageResult: `Message sent to room ${room}`, messageText: "" });
+  const room = state.selectedRoom;
+  if (room.length === 0) {
+    setState({ ...state, messageResult: `No room`, messageText: "" });
+    return;
   }
+  console.log(`Publishing ${message} to room ${room}`);
+  natsConnectionState.connection.publish(room, message);
+  setState({ ...state, messageResult: `Message sent to room ${room}`, messageText: "" });
 }
 
 function createSubscriptionCallback(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void) {
