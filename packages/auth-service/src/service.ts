@@ -1,30 +1,16 @@
-import fs from "fs";
-import { program } from "commander";
 import * as Nats from "nats";
 import * as Nkeys from "nkeys.js";
 import * as Jwt from "nats-jwt";
 import { Data, MyAuthToken, readData } from "@nats-chat/shared";
 import { AuthorizationRequestClaims, Opts, User } from "./types";
 
-program
-  .option("-nats.url <nats-url>")
-  .option("-nats.user <nats-user>")
-  .option("-nats.pass <nats-pass>")
-  .option("-issuer.seed <issuer-seed>")
-  .option("-xkey.seed <xkey-seed>")
-  .option("-users <users-json>")
-  .action((opts) => {
-    run(opts);
-  });
+run();
 
-program.parse(process.argv);
-
-async function run(opts: Opts) {
-  const natsUrl = opts["Nats.url"];
-  const natsUser = opts["Nats.user"];
-  const natsPass = opts["Nats.pass"];
-  const issuerSeed = opts["Issuer.seed"];
-  const usersFile = opts["Users"];
+async function run() {
+  const natsUrl = "nats://localhost:4228";
+  const natsUser = "auth";
+  const natsPass = "auth";
+  const issuerSeed = "SAANDLKMXL6CUS3CP52WIXBEDN6YJ545GDKC65U5JZPPV6WH6ESWUA6YAI";
 
   var enc = new TextEncoder();
   var dec = new TextDecoder();
@@ -96,11 +82,6 @@ async function msgHandler(req: Nats.Msg, enc: TextEncoder, dec: TextDecoder, use
     return respondMsg(req, userNkey, serverId, "", "invalid credentials");
   }
 
-  // // Check if the credential is valid.
-  // if (userProfile.pass != rc.nats.connect_opts.pass) {
-  //   return respondMsg(req, userNkey, serverId, "", "invalid credentials");
-  // }
-
   // Check if the user exists.
   const userProfile = userData.users[parsedAuthToken.user];
   if (!userProfile) {
@@ -113,21 +94,15 @@ async function msgHandler(req: Nats.Msg, enc: TextEncoder, dec: TextDecoder, use
     .map(([roomName, room]) => roomName);
 
   // Prepare a user JWT.
-  // Sign it with the issuer key since this is non-operator mode.
   let ejwt: string;
   try {
     ejwt = await Jwt.encodeUser(
       rc.nats.connect_opts.user!,
       rc.nats.user_nkey,
       issuerKeyPair,
-      // Set the associated permissions if present.
-      // userProfile.permissions,
+      // Add "public" because if the allowed array is empty then all is allowed
       { pub: { allow: ["public", ...allowedRooms], deny: [] }, sub: { allow: ["public", ...allowedRooms], deny: [] } },
-      // {},
-      {
-        // Audience contains the account in non-operator mode.
-        aud: userProfile.account,
-      }
+      { aud: userProfile.account }
     );
   } catch (e) {
     return respondMsg(req, userNkey, serverId, "", "error signing user JWT");

@@ -14,17 +14,9 @@
     "@nats-chat/shared": "*",
     "nats": "^2.6.1",
     "nkeys.js": "^1.0.5",
-    "nats-jwt": "^0.0.7",
-    "commander": "^11.1.0"
-  },
-  "config": {
-    "NATS_URL": "nats://localhost:4228",
-    "ISSUER_NKEY": "ABJHLOVMPA4CI6R5KLNGOB4GSLNIY7IOUPAJC4YFNDLQVIOBYQGUWVLA",
-    "ISSUER_NSEED": "SAANDLKMXL6CUS3CP52WIXBEDN6YJ545GDKC65U5JZPPV6WH6ESWUA6YAI",
-    "ISSUER_XKEY": "XAB3NANV3M6N7AHSQP2U5FRWKKUT7EG2ZXXABV4XVXYQRJGM4S2CZGHT",
-    "ISSUER_XSEED": "SAANDLKMXL6CUS3CP52WIXBEDN6YJ545GDKC65U5JZPPV6WH6ESWUA6YAI"
+    "nats-jwt": "^0.0.7"
   },
   "scripts": {
-    "serve": "tsx src/service.ts -nats.url $npm_package_config_NATS_URL -nats.user auth -nats.pass auth -issuer.seed $npm_package_config_ISSUER_NSEED -xkey.seed $npm_package_config_ISSUER_XSEED -users users.json"
+    "serve": "tsx src/service.ts"
   }
 }
