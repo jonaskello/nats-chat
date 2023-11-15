@@ -42,9 +42,29 @@ type State = {
   readonly selectedRoom: string;
 };
 
+// type State = LoggedInState | NotLoggedInState;
+
+// type LoggedInState = {
+//   readonly type: "LoggedInState";
+//   readonly natsConnectionState: NatsConnectionState;
+//   readonly availableRooms: ReadonlyArray<string>;
+//   readonly subscribedRooms: Record<string, RoomSubscriptionState>;
+//   readonly messageText: string;
+//   readonly messageResult: string;
+//   readonly selectedRoom: string;
+// };
+
+// type NotLoggedInState = {
+//   readonly type: "NotLoggedInState";
+//   readonly user: string;
+//   readonly pass: string;
+//   readonly error: string;
+// };
+
 function Main() {
   const natsUrl = "ws://localhost:9228";
   const [state, setState] = useState<State>({
+    // type: "LoggedInState",
     loggedIn: false,
     natsConnectionState: { type: "Connecting" },
     availableRooms: [],
@@ -100,6 +120,11 @@ function Main() {
   }, [state.loggedIn]);
 
   ///
+  if (!state.loggedIn) {
+    return <Login state={state} setState={setState} />;
+  }
+
+  ///
   const { natsConnectionState } = state;
 
   if (natsConnectionState.type === "Connecting") {
@@ -109,26 +134,29 @@ function Main() {
     return (
       <div>
         <div>Connection failed: {natsConnectionState.error}</div> <br />
-        <LoginLogout state={state} setState={setState} />
+        <Logout state={state} setState={setState} />
       </div>
     );
   }
 
   return (
     <div>
-      <LoginLogout state={state} setState={setState} />
+      <Logout state={state} setState={setState} />
       <br />
-      <Chat stateRef={stateRef} setState={setState} />
+      <ChatRooms stateRef={stateRef} setState={setState} />
     </div>
   );
 }
 
 function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State | undefined>; setState: (state: State) => void }) {
+  return <ChatRooms stateRef={stateRef} setState={setState} />;
+}
+
+function ChatRooms({ stateRef, setState }: { stateRef: React.MutableRefObject<State | undefined>; setState: (state: State) => void }) {
   const state = stateRef.current;
   if (state === undefined) {
     return <div>no state</div>;
   }
-  console.log("CHAT state", state);
   const selectedRoomSubState = state.subscribedRooms[state.selectedRoom];
   return (
     <div>
@@ -175,23 +203,41 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
   );
 }
 
-function LoginLogout({ state, setState }: { state: State; setState: (state: State) => void }) {
+function Login({ state, setState }: { state: State; setState: (state: State) => void }) {
   return (
     <div>
+      <table>
+        <tbody>
+          <tr>
+            <td>User</td>
+            <td>
+              <input type="text" size={20} />
+            </td>
+          </tr>
+          <tr>
+            <td>Password</td>
+            <td>
+              <input type="text" size={20} />
+            </td>
+          </tr>
+        </tbody>
+      </table>
       <button
         onClick={async () => {
-          console.log("hej");
-          const resp = await fetch("/login");
-          console.log("resp", resp);
+          // Fetching /login  will cause the cookie to be set
+          await fetch("/login", { method: "POST", body: JSON.stringify({ user: "", pass: "" }) });
           setState({ ...state, loggedIn: true });
         }}
       >
         Login
       </button>
-      <div>
-        <a href="/login">login</a>
-      </div>
-      <br />
+    </div>
+  );
+}
+
+function Logout({ state, setState }: { state: State; setState: (state: State) => void }) {
+  return (
+    <div>
       <div>
         <a href="/logout">logout</a>
       </div>
