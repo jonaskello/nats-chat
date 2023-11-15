@@ -165,6 +165,7 @@ function sendMessage(
           ...state,
           messageResult: `Joined room ${room}`,
           messageText: "",
+          selectedRoom: room,
           rooms: { ...state.rooms, [room]: { subscription: sub, messages: "" } },
         });
         return;
@@ -199,6 +200,9 @@ function sendMessage(
 
 function createSubscriptionCallback(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void) {
   return (err: Nats.NatsError | null, msg: Nats.Msg) => {
+    if (err) {
+      throw new Error(`Error while receiving message ${err.code}, ${err.message}`);
+    }
     console.log("hello there");
     const state = stateRef.current;
     if (state === undefined) {
