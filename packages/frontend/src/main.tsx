@@ -19,15 +19,23 @@ type NatsConnectionConnected = {
   readonly connection: Nats.NatsConnection;
 };
 
-type SubscribedRoom = {
+type RoomSubscriptionState = RoomSubscriptionStateSubscribed | RoomSubscriptionStateError;
+
+type RoomSubscriptionStateSubscribed = {
+  readonly type: "Subscribed";
   readonly subscription: Nats.Subscription;
   readonly messages: string;
+};
+
+type RoomSubscriptionStateError = {
+  readonly type: "Error";
+  readonly error: string;
 };
 
 type State = {
   readonly natsConnectionState: NatsConnectionState;
   readonly availableRooms: ReadonlyArray<string>;
-  readonly subscribedRooms: Record<string, SubscribedRoom>;
+  readonly subscribedRooms: Record<string, RoomSubscriptionState>;
   readonly messageText: string;
   readonly messageResult: string;
   readonly selectedRoom: string;
@@ -39,7 +47,7 @@ function Main() {
     natsConnectionState: { type: "Connecting" },
     availableRooms: [],
     subscribedRooms: {},
-    messageText: "/join olle",
+    messageText: "",
     messageResult: "",
     selectedRoom: "",
   });
@@ -114,6 +122,7 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
     return <div>no state</div>;
   }
   console.log("CHAT state", state);
+  const selectedRoomSubState = state.subscribedRooms[state.selectedRoom];
   return (
     <div>
       <table>
@@ -129,11 +138,15 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
               </select>
             </td>
             <td>
-              {state.subscribedRooms[state.selectedRoom] !== undefined ? (
-                <div>
-                  <textarea readOnly cols={40} rows={11} value={state.subscribedRooms[state.selectedRoom]?.messages}></textarea>
-                  <button onClick={() => leaveRoom(stateRef, setState)}>Leave</button>
-                </div>
+              {selectedRoomSubState !== undefined ? (
+                selectedRoomSubState.type === "Subscribed" ? (
+                  <div>
+                    <textarea readOnly cols={40} rows={11} value={selectedRoomSubState.messages}></textarea>
+                    <button onClick={() => leaveRoom(stateRef, setState)}>Leave</button>
+                  </div>
+                ) : (
+                  <div>ERROR: {selectedRoomSubState.error}</div>
+                )
               ) : (
                 <div>
                   <div>Not joined</div>
@@ -189,8 +202,10 @@ function leaveRoom(stateRef: React.MutableRefObject<State | undefined>, setState
     return;
   }
   const theRoom = state.subscribedRooms[room];
-  theRoom?.subscription.drain();
   delete state.subscribedRooms[room];
+  if (theRoom?.type === "Subscribed") {
+    theRoom?.subscription.drain();
+  }
   setState({ ...state, messageResult: `Left room ${room}`, subscribedRooms: state.subscribedRooms });
   return;
 }
@@ -214,7 +229,7 @@ function joinRoom(stateRef: React.MutableRefObject<State | undefined>, setState:
     messageResult: `Joined room ${room}`,
     messageText: "",
     selectedRoom: room,
-    subscribedRooms: { ...state.subscribedRooms, [room]: { subscription: sub, messages: "" } },
+    subscribedRooms: { ...state.subscribedRooms, [room]: { type: "Subscribed", subscription: sub, messages: "" } },
   });
 }
 
@@ -250,7 +265,7 @@ function createSubscriptionCallback(stateRef: React.MutableRefObject<State | und
     }
     const room = msg.subject;
     const roomState = state.subscribedRooms[room];
-    if (roomState) {
+    if (roomState?.type === "Subscribed") {
       const sc = Nats.StringCodec();
       const newState: State = {
         ...state,
