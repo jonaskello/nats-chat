@@ -53,7 +53,7 @@ function Main() {
       .then((data) => {
         const currentState = stateRef.current;
         if (!currentState) return;
-        const newState = { ...currentState, availableRooms: data };
+        const newState: State = { ...currentState, availableRooms: data, selectedRoom: data[0] };
         console.log("newState", newState);
         setState(newState);
       })
@@ -129,7 +129,11 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
               </select>
             </td>
             <td>
-              <textarea cols={40} rows={11} value={state.subscribedRooms[state.selectedRoom]?.messages}></textarea>
+              {state.subscribedRooms[state.selectedRoom] !== undefined ? (
+                <textarea cols={40} rows={11} value={state.subscribedRooms[state.selectedRoom]?.messages}></textarea>
+              ) : (
+                <div>Not subscribed</div>
+              )}
             </td>
           </tr>
         </tbody>
