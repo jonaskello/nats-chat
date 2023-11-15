@@ -3,7 +3,7 @@ import { program } from "commander";
 import * as Nats from "nats";
 import * as Nkeys from "nkeys.js";
 import * as Jwt from "nats-jwt";
-import { MyAuthToken } from "@nats-chat/shared";
+import { Data, MyAuthToken, readData } from "@nats-chat/shared";
 import { AuthorizationRequestClaims, Opts, User } from "./types";
 
 program
@@ -24,7 +24,6 @@ async function run(opts: Opts) {
   const natsUser = opts["Nats.user"];
   const natsPass = opts["Nats.pass"];
   const issuerSeed = opts["Issuer.seed"];
-  const xkeySeed = opts["Xkey.seed"];
   const usersFile = opts["Users"];
 
   var enc = new TextEncoder();
@@ -33,15 +32,8 @@ async function run(opts: Opts) {
   // Parse the issuer account signing key.
   const issuerKeyPair = Nkeys.fromSeed(enc.encode(issuerSeed));
 
-  // Parse the xkey seed if present.
-  let curveKeyPair: Nkeys.KeyPair | undefined;
-  // if (xkeySeed.length > 0) {
-  //   curveKeyPair = Nkeys.fromSeed(enc.encode(xkeySeed));
-  // }
-
-  // Load and decode the users file.
-  const usersData = fs.readFileSync(usersFile, "utf-8");
-  const users = JSON.parse(usersData);
+  // Load users file and their reights
+  const userData = await readData();
 
   // Open the NATS connection passing the auth account creds file.
   const nc = await Nats.connect({ servers: natsUrl, user: natsUser, pass: natsPass });
@@ -50,18 +42,11 @@ async function run(opts: Opts) {
   const sub = nc.subscribe("$SYS.REQ.USER.AUTH");
   console.log(`listening for ${sub.getSubject()} requests...`);
   for await (const msg of sub) {
-    await msgHandler(msg, curveKeyPair, enc, dec, users, issuerKeyPair);
+    await msgHandler(msg, enc, dec, userData, issuerKeyPair);
   }
 }
 
-async function msgHandler(
-  req: Nats.Msg,
-  curveKeyPair: Nkeys.KeyPair | undefined,
-  enc: TextEncoder,
-  dec: TextDecoder,
-  users: Record<string, User>,
-  issuerKeyPair: Nkeys.KeyPair
-) {
+async function msgHandler(req: Nats.Msg, enc: TextEncoder, dec: TextDecoder, userData: Data, issuerKeyPair: Nkeys.KeyPair) {
   // Helper function to construct an authorization response.
   const respondMsg = async (req: Nats.Msg, userNkey: string, serverId: string, userJwt: string, errMsg: string) => {
     let token: string;
@@ -72,43 +57,12 @@ async function msgHandler(
       req.respond(undefined);
       return;
     }
-
     let data = enc.encode(token);
-
-    // // Check if encryption is required.
-    // const xkey = req.headers?.get("Nats-Server-Xkey");
-    // if (xkey && xkey.length > 0 && curveKeyPair) {
-    //   try {
-    //     //  data = curveKeyPair.Seal(data, xkey);
-    //     data = new Uint8Array();
-    //   } catch (err) {
-    //     console.log("error encrypting response JWT: %s", err);
-    //     req.respond(undefined);
-    //     return;
-    //   }
-    // }
-
     req.respond(data);
   };
 
   // Check for Xkey header and decrypt
-  let token: Uint8Array;
-  // const xkey = req.headers?.get("Nats-Server-Xkey");
-  // if (xkey && xkey.length > 0) {
-  //   if (!curveKeyPair) {
-  //     return respondMsg(req, "", "", "", "xkey not supported");
-  //   }
-  //   // Decrypt the message.
-  //   try {
-  //     // TODO: No open function to call...
-  //     // const token = curveKeyPair.open(req.data, xkey);
-  //     token = new Uint8Array();
-  //   } catch (e) {
-  //     return respondMsg(req, "", "", "", "error decrypting message");
-  //   }
-  // } else {
-  token = req.data;
-  // }
+  let token: Uint8Array = req.data;
 
   // Decode the authorization request claims.
   let rc: AuthorizationRequestClaims;
