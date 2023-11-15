@@ -33,6 +33,7 @@ type RoomSubscriptionStateError = {
 };
 
 type State = {
+  readonly loggedIn: boolean;
   readonly natsConnectionState: NatsConnectionState;
   readonly availableRooms: ReadonlyArray<string>;
   readonly subscribedRooms: Record<string, RoomSubscriptionState>;
@@ -44,6 +45,7 @@ type State = {
 function Main() {
   const natsUrl = "ws://localhost:9228";
   const [state, setState] = useState<State>({
+    loggedIn: false,
     natsConnectionState: { type: "Connecting" },
     availableRooms: [],
     subscribedRooms: {},
@@ -95,7 +97,7 @@ function Main() {
       console.log("CLOSING NATS CONNECTION!");
       nc && nc.close();
     };
-  }, [natsUrl]);
+  }, [state.loggedIn]);
 
   ///
   const { natsConnectionState } = state;
@@ -104,12 +106,17 @@ function Main() {
     return <div>Connecting...</div>;
   }
   if (natsConnectionState.type === "Failed") {
-    return <ConnectionFailed error={natsConnectionState.error} />;
+    return (
+      <div>
+        <div>Connection failed: {natsConnectionState.error}</div> <br />
+        <LoginLogout state={state} setState={setState} />
+      </div>
+    );
   }
 
   return (
     <div>
-      <LoginLogout />
+      <LoginLogout state={state} setState={setState} />
       <br />
       <Chat stateRef={stateRef} setState={setState} />
     </div>
@@ -168,18 +175,19 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
   );
 }
 
-function ConnectionFailed({ error }: { error: string }) {
+function LoginLogout({ state, setState }: { state: State; setState: (state: State) => void }) {
   return (
     <div>
-      <div>Connection failed: {error}</div> <br />
-      <LoginLogout />
-    </div>
-  );
-}
-
-function LoginLogout() {
-  return (
-    <div>
+      <button
+        onClick={async () => {
+          console.log("hej");
+          const resp = await fetch("/login");
+          console.log("resp", resp);
+          setState({ ...state, loggedIn: true });
+        }}
+      >
+        Login
+      </button>
       <div>
         <a href="/login">login</a>
       </div>
