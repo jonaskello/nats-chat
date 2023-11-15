@@ -130,9 +130,12 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
             </td>
             <td>
               {state.subscribedRooms[state.selectedRoom] !== undefined ? (
-                <textarea cols={40} rows={11} value={state.subscribedRooms[state.selectedRoom]?.messages}></textarea>
+                <textarea readOnly cols={40} rows={11} value={state.subscribedRooms[state.selectedRoom]?.messages}></textarea>
               ) : (
-                <div>Not subscribed</div>
+                <div>
+                  <div>Not joined</div>
+                  <button onClick={() => joinRoom(stateRef, setState)}>Join</button>
+                </div>
               )}
             </td>
           </tr>
@@ -170,6 +173,29 @@ function LoginLogout() {
       </div>
     </div>
   );
+}
+
+function joinRoom(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void): void {
+  const state = stateRef.current;
+  if (state === undefined) {
+    return;
+  }
+  const natsConnectionState = state.natsConnectionState;
+  if (natsConnectionState.type !== "Connected") {
+    setState({ ...state, messageResult: `Not connected`, messageText: "" });
+    return;
+  }
+  const room = state.selectedRoom;
+  const sub = natsConnectionState.connection.subscribe(room, {
+    callback: createSubscriptionCallback(stateRef, setState),
+  });
+  setState({
+    ...state,
+    messageResult: `Joined room ${room}`,
+    messageText: "",
+    selectedRoom: room,
+    subscribedRooms: { ...state.subscribedRooms, [room]: { subscription: sub, messages: "" } },
+  });
 }
 
 function sendMessage(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void): void {
