@@ -43,7 +43,6 @@ function Main() {
     messageResult: "",
     selectedRoom: "",
   });
-  console.log("MAIN - State", state);
   const stateRef = useRef<State>();
   stateRef.current = state;
 
@@ -107,7 +106,7 @@ function Main() {
       <br />
       <div>
         <input type="text" size={20} value={state.messageText} onChange={(e) => setState({ ...state, messageText: e.target.value })} />
-        <button onClick={() => sendMessage(natsConnectionState.connection, state.messageText, stateRef, setState)}>Send</button>
+        <button onClick={() => sendMessage(stateRef, setState)}>Send</button>
       </div>
       <div>{state.messageResult}</div>
     </div>
@@ -137,18 +136,17 @@ function LoginLogout() {
   );
 }
 
-function sendMessage(
-  nc: Nats.NatsConnection,
-  message: string,
-  stateRef: React.MutableRefObject<State | undefined>,
-  setState: (state: State) => void
-): void {
+function sendMessage(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void): void {
   const state = stateRef.current;
   if (state === undefined) {
     return;
   }
-  console.log("message", message);
-  console.log("rooms", state.rooms);
+  const natsConnectionState = state.natsConnectionState;
+  if (natsConnectionState.type !== "Connected") {
+    setState({ ...state, messageResult: `Not connected`, messageText: "" });
+    return;
+  }
+  const message = state.messageText;
   if (message.startsWith("/")) {
     const cmdParts = message.split(" ");
     switch (cmdParts[0]) {
@@ -158,7 +156,7 @@ function sendMessage(
           setState({ ...state, messageResult: `No room`, messageText: "" });
           return;
         }
-        const sub = nc.subscribe(room, {
+        const sub = natsConnectionState.connection.subscribe(room, {
           callback: createSubscriptionCallback(stateRef, setState),
         });
         setState({
@@ -193,7 +191,7 @@ function sendMessage(
       return;
     }
     console.log(`Publishing ${message} to room ${room}`);
-    nc.publish(room, message);
+    natsConnectionState.connection.publish(room, message);
     setState({ ...state, messageResult: `Message sent to room ${room}`, messageText: "" });
   }
 }
@@ -203,21 +201,18 @@ function createSubscriptionCallback(stateRef: React.MutableRefObject<State | und
     if (err) {
       throw new Error(`Error while receiving message ${err.code}, ${err.message}`);
     }
-    console.log("hello there");
     const state = stateRef.current;
     if (state === undefined) {
       return;
     }
     const room = msg.subject;
     const roomState = state.rooms[room];
-    console.log("room", room, "state", roomState);
     if (roomState) {
       const sc = Nats.StringCodec();
       const newState: State = {
         ...state,
         rooms: { ...state.rooms, [room]: { ...roomState, messages: roomState.messages + sc.decode(msg.data) + "\n" } },
       };
-      console.log("newState", newState);
       setState(newState);
     }
   };
