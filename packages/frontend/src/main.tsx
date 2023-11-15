@@ -58,11 +58,9 @@ function Main() {
         }
         // nc = await Nats.connect({ servers: natsUrl, user: "alice", pass: "alice" });
         nc = await Nats.connect({ servers: natsUrl, token: natsCookieValue });
-        // setNatsConnectionState({ type: "Connected", connection: nc });
         setState({ ...state, natsConnectionState: { type: "Connected", connection: nc } });
       } catch (ex) {
         console.log("error while connecting");
-        // setNatsConnectionState({ type: "Failed", error: ex.message });
         setState({ ...state, natsConnectionState: { type: "Failed", error: ex.message } });
       }
     };
