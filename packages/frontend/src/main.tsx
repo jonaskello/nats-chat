@@ -296,15 +296,13 @@ function sendMessage(stateRef: React.MutableRefObject<State | undefined>, setSta
     setState({ ...state, messageResult: `Not connected`, messageText: "" });
     return;
   }
-  const message = state.messageText;
-  const room = state.selectedRoom;
-  if (room.length === 0) {
-    setState({ ...state, messageResult: `No room`, messageText: "" });
+  if (!state.subscribedRooms[state.selectedRoom]) {
+    setState({ ...state, messageResult: `No room to send to, try joining a room first`, messageText: "" });
     return;
   }
-  const cm: ChatMessage = { sender: state.loggedInUser, message };
-  natsConnectionState.connection.publish(room, JSON.stringify(cm));
-  setState({ ...state, messageResult: `Message sent to room ${room}`, messageText: "" });
+  const cm: ChatMessage = { sender: state.loggedInUser, message: state.messageText };
+  natsConnectionState.connection.publish(state.selectedRoom, JSON.stringify(cm));
+  setState({ ...state, messageResult: `Message sent to room ${state.selectedRoom}`, messageText: "" });
 }
 
 function createSubscriptionCallback(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void) {

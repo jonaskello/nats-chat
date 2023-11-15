@@ -72,7 +72,6 @@ async function msgHandler(req: Nats.Msg, enc: TextEncoder, dec: TextDecoder, use
   let parsedAuthToken: MyAuthToken;
   try {
     parsedAuthToken = JSON.parse(authToken);
-    console.log("parsedAuthToken", parsedAuthToken);
   } catch (e) {
     return respondMsg(req, "", "", "", (e as Error).message);
   }

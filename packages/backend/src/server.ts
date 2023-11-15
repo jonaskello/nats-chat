@@ -14,8 +14,6 @@ app.use(express.json());
 app.post("/login", (req, res, next) => {
   const { user, pass } = req.body;
   const userRecord = data.users[user];
-  console.log("pass", pass);
-  console.log("userRecord", userRecord);
   if (userRecord === undefined || userRecord.pass !== pass) {
     res.statusCode = 401;
     res.send("Invalid user/pass");
