@@ -65,16 +65,6 @@ importers:
         specifier: ^20.9.0
         version: 20.9.0
 
-  packages/chat-service:
-    dependencies:
-      nats:
-        specifier: ^2.6.1
-        version: 2.18.0
-    devDependencies:
-      '@types/node':
-        specifier: ^20.9.0
-        version: 20.9.0
-
   packages/frontend:
     dependencies:
       nats.ws:

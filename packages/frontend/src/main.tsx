@@ -208,21 +208,24 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
   );
 }
 
-function Login({ state, setState }: { state: State; setState: (state: State) => void }) {
+function Login({ state, setState }: { state: NotLoggedInState; setState: (state: State) => void }) {
   return (
     <div>
       <table>
         <tbody>
           <tr>
+            <td>{state.error}</td>
+          </tr>
+          <tr>
             <td>User</td>
             <td>
-              <input type="text" size={20} />
+              <input type="text" size={20} value={state.user} onChange={(e) => setState({ ...state, user: e.target.value })} />
             </td>
           </tr>
           <tr>
             <td>Password</td>
             <td>
-              <input type="text" size={20} />
+              <input type="text" size={20} value={state.pass} onChange={(e) => setState({ ...state, pass: e.target.value })} />
             </td>
           </tr>
         </tbody>
@@ -230,16 +233,24 @@ function Login({ state, setState }: { state: State; setState: (state: State) => 
       <button
         onClick={async () => {
           // Fetching /login  will cause the cookie to be set
-          await fetch("/login", { method: "POST", body: JSON.stringify({ user: "", pass: "" }) });
-          setState({
-            type: "LoggedInState",
-            natsConnectionState: { type: "Connecting" },
-            availableRooms: [],
-            subscribedRooms: {},
-            messageText: "",
-            messageResult: "",
-            selectedRoom: "",
+          const resp = await fetch("/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user: state.user, pass: state.pass }),
           });
+          if (resp.status === 200) {
+            setState({
+              type: "LoggedInState",
+              natsConnectionState: { type: "Connecting" },
+              availableRooms: [],
+              subscribedRooms: {},
+              messageText: "",
+              messageResult: "",
+              selectedRoom: "",
+            });
+          } else {
+            setState({ ...state, error: resp.status.toString() });
+          }
         }}
       >
         Login
