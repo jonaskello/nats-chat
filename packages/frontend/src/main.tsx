@@ -31,15 +31,21 @@ type State = {
   readonly rooms: Rooms;
   readonly messageText: string;
   readonly messageResult: string;
+  readonly selectedRoom: string;
 };
 
 function Main() {
   const natsUrl = "ws://localhost:9228";
-  const [state, setState] = useState<State>({ natsConnectionState: { type: "Connecting" }, rooms: {}, messageText: "/join olle", messageResult: "" });
+  const [state, setState] = useState<State>({
+    natsConnectionState: { type: "Connecting" },
+    rooms: {},
+    messageText: "/join olle",
+    messageResult: "",
+    selectedRoom: "",
+  });
   const [rooms, setRooms] = useState<Rooms>({});
   const roomsRef = useRef<Rooms>();
   roomsRef.current = rooms;
-  const [selectedRoom, setSelectedRoom] = useState<string>("");
 
   useEffect(() => {
     let nc: Nats.NatsConnection;
@@ -85,7 +91,7 @@ function Main() {
         <tbody>
           <tr>
             <td>
-              <select size={10} value={selectedRoom} onChange={(e) => setSelectedRoom(e.target.value)}>
+              <select size={10} value={state.selectedRoom} onChange={(e) => setState({ ...state, selectedRoom: e.target.value })}>
                 {Object.keys(rooms).map((r) => (
                   <option key={r} value={r}>
                     #{r}
@@ -94,7 +100,7 @@ function Main() {
               </select>
             </td>
             <td>
-              <textarea cols={40} rows={11} value={rooms[selectedRoom]?.messages}></textarea>
+              <textarea cols={40} rows={11} value={rooms[state.selectedRoom]?.messages}></textarea>
             </td>
           </tr>
         </tbody>
@@ -105,7 +111,7 @@ function Main() {
         <input type="text" size={20} value={state.messageText} onChange={(e) => setState({ ...state, messageText: e.target.value })} />
         <button
           onClick={() => {
-            const result = sendMessage(natsConnectionState.connection, state.messageText, selectedRoom, roomsRef, setRooms);
+            const result = sendMessage(natsConnectionState.connection, state.messageText, state.selectedRoom, roomsRef, setRooms);
             setState({ ...state, messageResult: result });
             setState({ ...state, messageText: "" });
           }}
