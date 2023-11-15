@@ -2,7 +2,7 @@ import * as Nats from "nats";
 import * as Nkeys from "nkeys.js";
 import * as Jwt from "nats-jwt";
 import { Data, MyAuthToken, readData } from "@nats-chat/shared";
-import { AuthorizationRequestClaims, Opts, User } from "./types";
+import { AuthorizationRequestClaims } from "./types";
 
 run();
 
