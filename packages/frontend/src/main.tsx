@@ -114,12 +114,16 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
     let nc: Nats.NatsConnection;
     const connect = async () => {
       try {
-        nc = await connectToNats();
-        const currentState = stateRef.current;
-        if (currentState === undefined || currentState.type !== "LoggedInState") {
-          return;
+        const stateBeforeConnect = stateRef.current;
+        if (stateBeforeConnect === undefined || stateBeforeConnect.type !== "LoggedInState") {
+          throw new Error("Unexpected state");
         }
-        setState({ ...currentState, natsConnectionState: { type: "Connected", connection: nc } });
+        nc = await connectToNats(stateBeforeConnect);
+        const stateAfterConnect = stateRef.current;
+        if (stateAfterConnect === undefined || stateAfterConnect.type !== "LoggedInState") {
+          throw new Error("Unexpected state");
+        }
+        setState({ ...stateAfterConnect, natsConnectionState: { type: "Connected", connection: nc } });
       } catch (ex) {
         const currentState = stateRef.current;
         if (currentState === undefined || currentState.type !== "LoggedInState") {
@@ -332,7 +336,7 @@ function createSubscriptionCallback(stateRef: React.MutableRefObject<State | und
       // Set state to indicate that we are connecting
       setState({ ...state, natsConnectionState: { type: "Connecting" } });
       // We now connect again
-      const nc = await connectToNats();
+      const nc = await connectToNats(state);
       const stateAfterConnect = stateRef.current;
       if (stateAfterConnect === undefined || stateAfterConnect.type !== "LoggedInState") {
         throw new Error("Unexpected state");
@@ -364,14 +368,15 @@ function createSubscriptionCallback(stateRef: React.MutableRefObject<State | und
   };
 }
 
-async function connectToNats(): Promise<Nats.NatsConnection> {
+async function connectToNats(state: LoggedInState): Promise<Nats.NatsConnection> {
   // Get token from cookie
   const natsCookieValue = getCookie("myCookie");
   if (natsCookieValue === undefined) {
     throw new Error("No cookie value");
   }
+  const subjects: ReadonlyArray<string> = Object.keys(state.subscribedRooms);
   // nc = await Nats.connect({ servers: natsUrl, user: "alice", pass: "alice" });
-  const nc = await Nats.connect({ servers: natsUrl, token: natsCookieValue });
+  const nc = await Nats.connect({ servers: natsUrl, token: natsCookieValue, user: subjects.join(";") });
   return nc;
 }
 

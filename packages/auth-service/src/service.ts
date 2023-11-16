@@ -88,14 +88,17 @@ async function msgHandler(req: Nats.Msg, enc: TextEncoder, dec: TextDecoder, use
     return respondMsg(req, userNkey, serverId, "", "user not found");
   }
 
-  // Get the requested subjects for this connection
-  const clientInfo = rc.nats.client_info;
-  const requestedSubjects = clientInfo.split(";");
-
   // Gather permissions for user
   const allowedRooms = Object.entries(userData.rooms)
     .filter(([, room]) => room.users.includes(parsedAuthToken.user))
     .map(([roomName]) => roomName);
+
+  // Get the requested subjects/rooms for this connection (passed in the user field but should be passed in client_info field somewhow?)
+  const requestedRooms = rc.nats.connect_opts.user?.split(";") ?? [];
+
+  // Only grant permissions to requested rooms that the user actually has access to
+  const grantedRooms = requestedRooms.filter((rr) => allowedRooms.includes(rr));
+  console.log(`Auth service granted persmission to rooms: ${JSON.stringify(grantedRooms)}`);
 
   // Prepare a user JWT.
   let ejwt: string;
@@ -105,7 +108,7 @@ async function msgHandler(req: Nats.Msg, enc: TextEncoder, dec: TextDecoder, use
       rc.nats.user_nkey,
       issuerKeyPair,
       // Add "public" because if the allowed array is empty then all is allowed
-      { pub: { allow: ["public", ...allowedRooms], deny: [] }, sub: { allow: ["public", ...allowedRooms], deny: [] } },
+      { pub: { allow: ["public", ...grantedRooms], deny: [] }, sub: { allow: ["public", ...grantedRooms], deny: [] } },
       { aud: userProfile.account }
     );
   } catch (e) {
