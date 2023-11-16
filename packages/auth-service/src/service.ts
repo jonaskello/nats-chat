@@ -88,6 +88,10 @@ async function msgHandler(req: Nats.Msg, enc: TextEncoder, dec: TextDecoder, use
     return respondMsg(req, userNkey, serverId, "", "user not found");
   }
 
+  // Get the requested subjects for this connection
+  const clientInfo = rc.nats.client_info;
+  const requestedSubjects = clientInfo.split(";");
+
   // Gather permissions for user
   const allowedRooms = Object.entries(userData.rooms)
     .filter(([, room]) => room.users.includes(parsedAuthToken.user))

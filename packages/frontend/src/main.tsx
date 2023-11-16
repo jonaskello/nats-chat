@@ -114,13 +114,7 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
     let nc: Nats.NatsConnection;
     const connect = async () => {
       try {
-        // Get token from cookie
-        const natsCookieValue = getCookie("myCookie");
-        if (natsCookieValue === undefined) {
-          throw new Error("No cookie value");
-        }
-        // nc = await Nats.connect({ servers: natsUrl, user: "alice", pass: "alice" });
-        nc = await Nats.connect({ servers: natsUrl, token: natsCookieValue });
+        nc = await connectToNats();
         const currentState = stateRef.current;
         if (currentState === undefined || currentState.type !== "LoggedInState") {
           return;
@@ -338,11 +332,7 @@ function createSubscriptionCallback(stateRef: React.MutableRefObject<State | und
       // Set state to indicate that we are connecting
       setState({ ...state, natsConnectionState: { type: "Connecting" } });
       // We now connect again
-      const natsCookieValue = getCookie("myCookie");
-      if (natsCookieValue === undefined) {
-        throw new Error("No cookie value");
-      }
-      const nc = await Nats.connect({ servers: natsUrl, token: natsCookieValue });
+      const nc = await connectToNats();
       const stateAfterConnect = stateRef.current;
       if (stateAfterConnect === undefined || stateAfterConnect.type !== "LoggedInState") {
         throw new Error("Unexpected state");
@@ -372,6 +362,17 @@ function createSubscriptionCallback(stateRef: React.MutableRefObject<State | und
       setState(newState);
     }
   };
+}
+
+async function connectToNats(): Promise<Nats.NatsConnection> {
+  // Get token from cookie
+  const natsCookieValue = getCookie("myCookie");
+  if (natsCookieValue === undefined) {
+    throw new Error("No cookie value");
+  }
+  // nc = await Nats.connect({ servers: natsUrl, user: "alice", pass: "alice" });
+  const nc = await Nats.connect({ servers: natsUrl, token: natsCookieValue });
+  return nc;
 }
 
 function getCookie(name: string): string | undefined {
