@@ -308,29 +308,25 @@ function sendMessage(stateRef: React.MutableRefObject<State | undefined>, setSta
 
 function createSubscriptionCallback(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void) {
   return async (err: Nats.NatsError | null, msg: Nats.Msg) => {
-    console.log("SubscriptionCallback", err, msg);
     const state = stateRef.current;
     if (state === undefined || state.type !== "LoggedInState") {
       return;
     }
     if (err) {
-      console.log("SubscriptionCallback ERROR err", err);
       const room = err.permissionContext?.subject;
       if (room === undefined) {
         throw new Error(`Subscription error without permissionContext: ${err.code}, ${err.message}`);
       }
       // Check if we are already trying to upgrade the token for this room, if so give up
       const roomState = state.subscribedRooms[room];
-      console.log("SubscriptionCallback ERROR roomState", roomState);
       if (roomState?.type === "Subscribed" && roomState.upgradeTokenAttempts > 0) {
-        // throw new Error("Already tried upgrading.");
         setState({ ...state, subscribedRooms: { ...state.subscribedRooms, [room]: { type: "Error", error: err.message ?? "" } } });
         return;
       }
       // Subscription failed, try to upgrade the token to include permission to subscribe to the subject
       // To do this we need to disconnect from NATS and then re-connect passing the subjects we want access to
-      // Disconnect
       if (state.natsConnectionState.type === "Connected") {
+        console.log("Closing NATS connection to upgrade token");
         await state.natsConnectionState.connection.drain();
       }
       // Set state to indicate that we are connecting
@@ -375,6 +371,7 @@ async function connectToNats(state: LoggedInState): Promise<Nats.NatsConnection>
     throw new Error("No cookie value");
   }
   const subjects: ReadonlyArray<string> = Object.keys(state.subscribedRooms);
+  console.log(`Connecting to NATS requesting subjects: ${JSON.stringify(subjects)}`);
   // nc = await Nats.connect({ servers: natsUrl, user: "alice", pass: "alice" });
   const nc = await Nats.connect({ servers: natsUrl, token: natsCookieValue, user: subjects.join(";") });
   return nc;

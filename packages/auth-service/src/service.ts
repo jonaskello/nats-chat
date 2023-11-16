@@ -95,22 +95,20 @@ async function msgHandler(req: Nats.Msg, enc: TextEncoder, dec: TextDecoder, use
 
   // Get the requested subjects/rooms for this connection (passed in the user field but should be passed in client_info field somewhow?)
   const requestedRooms = rc.nats.connect_opts.user?.split(";") ?? [];
+  console.log(`Auth service requested permission to rooms: ${JSON.stringify(requestedRooms)}`);
 
   // Only grant permissions to requested rooms that the user actually has access to
   const grantedRooms = requestedRooms.filter((rr) => allowedRooms.includes(rr));
-  console.log(`Auth service granted persmission to rooms: ${JSON.stringify(grantedRooms)}`);
+  console.log(`Auth service granted permission to rooms: ${JSON.stringify(grantedRooms)}`);
 
+  // User part of the JWT token to issue
+  // Add "public" because if the allowed array is empty then all is allowed
+  const user: Partial<Jwt.User> = { pub: { allow: ["public", ...grantedRooms], deny: [] }, sub: { allow: ["public", ...grantedRooms], deny: [] } };
+  console.log(`Auth service user: ${JSON.stringify(user)}`);
   // Prepare a user JWT.
   let ejwt: string;
   try {
-    ejwt = await Jwt.encodeUser(
-      rc.nats.connect_opts.user!,
-      rc.nats.user_nkey,
-      issuerKeyPair,
-      // Add "public" because if the allowed array is empty then all is allowed
-      { pub: { allow: ["public", ...grantedRooms], deny: [] }, sub: { allow: ["public", ...grantedRooms], deny: [] } },
-      { aud: userProfile.account }
-    );
+    ejwt = await Jwt.encodeUser(rc.nats.connect_opts.user!, rc.nats.user_nkey, issuerKeyPair, user, { aud: userProfile.account });
   } catch (e) {
     return respondMsg(req, userNkey, serverId, "", "error signing user JWT");
   }
