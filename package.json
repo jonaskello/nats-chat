@@ -14,7 +14,7 @@
   "scripts": {
     "au": "pnpm --filter @nats-chat/auth-service run",
     "fe": "pnpm --filter @nats-chat/frontend run",
-    "serve": "pnpm run -r --parallel  --stream serve",
+    "serve": "pnpm run build && pnpm run -r --parallel --stream serve",
     "build": "tsc -b",
     "up": "docker compose up -d"
   }

@@ -26,9 +26,6 @@ importers:
       '@nats-chat/shared':
         specifier: '*'
         version: link:../shared
-      commander:
-        specifier: ^11.1.0
-        version: 11.1.0
       nats:
         specifier: ^2.6.1
         version: 2.18.0
@@ -84,7 +81,11 @@ importers:
         specifier: 18.2.6
         version: 18.2.6
 
-  packages/shared: {}
+  packages/shared:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.9.0
+        version: 20.9.0
 
 packages:
 
@@ -587,11 +588,6 @@ packages:
   /color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
     dev: true
-
-  /commander@11.1.0:
-    resolution: {integrity: sha512-yPVavfyCcRhmorC7rWlkHn15b4wDVgVmBA7kV4QVBsF7kv/9TKJAbAXVTxvTnwP8HHKjRCJDClKbciiYS7p0DQ==}
-    engines: {node: '>=16'}
-    dev: false
 
   /commander@8.3.0:
     resolution: {integrity: sha512-OkTL9umf+He2DZkUq8f8J9of7yL6RJKI24dVITBmNfZBmri9zYZQrKkuXiKhyfPSu8tUhnVBB1iKXevvnlR4Ww==}

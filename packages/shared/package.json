@@ -7,7 +7,9 @@
   "license": "MIT",
   "type": "module",
   "main": "./lib/index.js",
-  "devDependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.9.0"
+  },
   "dependencies": {},
   "scripts": {}
 }
