@@ -38,7 +38,7 @@ This applications main purpose is to demonstrate this authentication and authori
 1. User enters credentials (username, password) and posts it to HTTP backend.
 2. HTTP backend validates the credentials (normally the backend would delegate authentication to an identity provider using eg. OIDC).
 3. HTTP backend creates a cookie containing a token with username and a signature that can be validated later. This example just includes a plain text signature but in a real-world scenario it would use the token issued by identity provider which is signed by the provider's public key.
-4. The client connects to NATS server via websockets passing along the token from the cookie. Ideally the cookie would be http-only and NATS supports this by the websocket.jwt_cookie setting. However this setting is currently blocked for use with auth callout because the NATS server validates this setting to only be used with some other trust settings that probably are not relevant for auth callout scenario).
+4. The frontend connects to NATS server via websockets passing along the token from the cookie. Ideally the cookie would be http-only and NATS supports this by the websocket.jwt_cookie setting. However this setting is currently blocked for use with auth callout because the NATS server validates this setting to only be used with some other trust settings that probably are not relevant for auth callout scenario).
 5. The NATS server is configred for auth callout so it calls the auth service defined in the is example, passing along the token.
 6. The auth service issues a JWT without any permissions.
 7. The user tries to join a chat room.
