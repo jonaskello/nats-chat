@@ -296,7 +296,8 @@ function sendMessage(stateRef: React.MutableRefObject<State | undefined>, setSta
     setState({ ...state, messageResult: `Not connected`, messageText: "" });
     return;
   }
-  if (!state.subscribedRooms[state.selectedRoom]) {
+  const theRoom = state.subscribedRooms[state.selectedRoom];
+  if (!theRoom || theRoom.type === "Error") {
     setState({ ...state, messageResult: `No room to send to, try joining a room first`, messageText: "" });
     return;
   }
