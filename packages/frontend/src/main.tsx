@@ -19,15 +19,16 @@ type NatsConnectionConnected = {
   readonly connection: Nats.NatsConnection;
 };
 
-type RoomSubscriptionState = RoomSubscriptionStateSubscribed | RoomSubscriptionStateError;
+type RoomState = RoomStateSubscribed | RoomStateError;
 
-type RoomSubscriptionStateSubscribed = {
+type RoomStateSubscribed = {
   readonly type: "Subscribed";
   readonly subscription: Nats.Subscription;
   readonly messages: string;
+  readonly upgradeTokenAttempts: number;
 };
 
-type RoomSubscriptionStateError = {
+type RoomStateError = {
   readonly type: "Error";
   readonly error: string;
 };
@@ -39,7 +40,7 @@ type LoggedInState = {
   readonly loggedInUser: string;
   readonly natsConnectionState: NatsConnectionState;
   readonly availableRooms: ReadonlyArray<string>;
-  readonly subscribedRooms: Record<string, RoomSubscriptionState>;
+  readonly subscribedRooms: Record<string, RoomState>;
   readonly messageText: string;
   readonly messageResult: string;
   readonly selectedRoom: string;
@@ -56,6 +57,8 @@ type ChatMessage = {
   readonly sender: string;
   readonly message: string;
 };
+
+const natsUrl = "ws://localhost:9228";
 
 function Main() {
   const [state, setState] = useState<State>({
@@ -107,7 +110,6 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
   }, []);
 
   // Connect to NATS
-  const natsUrl = "ws://localhost:9228";
   useEffect(() => {
     let nc: Nats.NatsConnection;
     const connect = async () => {
@@ -150,7 +152,7 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
       </div>
     );
   }
-  const selectedRoomSubState = state.subscribedRooms[state.selectedRoom];
+  const selectedRoomState = state.subscribedRooms[state.selectedRoom];
   return (
     <div>
       <table>
@@ -166,14 +168,14 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
               </select>
             </td>
             <td>
-              {selectedRoomSubState !== undefined && selectedRoomSubState.type === "Subscribed" ? (
+              {selectedRoomState !== undefined && selectedRoomState.type === "Subscribed" ? (
                 <div>
-                  <textarea readOnly cols={40} rows={11} value={selectedRoomSubState.messages}></textarea>
+                  <textarea readOnly cols={40} rows={11} value={selectedRoomState.messages}></textarea>
                   <button onClick={() => leaveRoom(stateRef, setState)}>Leave</button>
                 </div>
               ) : (
                 <div>
-                  <div>{selectedRoomSubState && selectedRoomSubState.error}</div>
+                  <div>{selectedRoomState && selectedRoomState.type === "Error" && selectedRoomState.error}</div>
                   <button onClick={() => joinRoom(stateRef, setState)}>Join</button>
                 </div>
               )}
@@ -282,7 +284,7 @@ function joinRoom(stateRef: React.MutableRefObject<State | undefined>, setState:
     messageResult: `Joined room ${room}`,
     messageText: "",
     selectedRoom: room,
-    subscribedRooms: { ...state.subscribedRooms, [room]: { type: "Subscribed", subscription: sub, messages: "" } },
+    subscribedRooms: { ...state.subscribedRooms, [room]: { type: "Subscribed", subscription: sub, messages: "", upgradeTokenAttempts: 0 } },
   });
 }
 
@@ -307,21 +309,51 @@ function sendMessage(stateRef: React.MutableRefObject<State | undefined>, setSta
 }
 
 function createSubscriptionCallback(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void) {
-  return (err: Nats.NatsError | null, msg: Nats.Msg) => {
+  return async (err: Nats.NatsError | null, msg: Nats.Msg) => {
+    console.log("SubscriptionCallback", err, msg);
     const state = stateRef.current;
     if (state === undefined || state.type !== "LoggedInState") {
       return;
     }
     if (err) {
+      console.log("SubscriptionCallback ERROR err", err);
       const room = err.permissionContext?.subject;
       if (room === undefined) {
         throw new Error(`Subscription error without permissionContext: ${err.code}, ${err.message}`);
       }
-      const newState: State = {
-        ...state,
-        subscribedRooms: { ...state.subscribedRooms, [room]: { type: "Error", error: err.message ?? "" } },
-      };
-      setState(newState);
+      // Check if we are already trying to upgrade the token for this room, if so give up
+      const roomState = state.subscribedRooms[room];
+      console.log("SubscriptionCallback ERROR roomState", roomState);
+      if (roomState?.type === "Subscribed" && roomState.upgradeTokenAttempts > 0) {
+        // throw new Error("Already tried upgrading.");
+        setState({ ...state, subscribedRooms: { ...state.subscribedRooms, [room]: { type: "Error", error: err.message ?? "" } } });
+        return;
+      }
+      // Subscription failed, try to upgrade the token to include permission to subscribe to the subject
+      // To do this we need to disconnect from NATS and then re-connect passing the subjects we want access to
+      // Disconnect
+      if (state.natsConnectionState.type === "Connected") {
+        await state.natsConnectionState.connection.drain();
+      }
+      // Set state that we are connecting
+      setState({ ...state, natsConnectionState: { type: "Connecting" } });
+      // We now connect again
+      const natsCookieValue = getCookie("myCookie");
+      if (natsCookieValue === undefined) {
+        throw new Error("No cookie value");
+      }
+      const nc = await Nats.connect({ servers: natsUrl, token: natsCookieValue });
+      const stateAfterConnect = stateRef.current;
+      if (stateAfterConnect === undefined || stateAfterConnect.type !== "LoggedInState") {
+        throw new Error("Unexpected state");
+      }
+      // After we connected, try subscribe again
+      const sub = nc.subscribe(room, { callback: createSubscriptionCallback(stateRef, setState) });
+      setState({
+        ...stateAfterConnect,
+        natsConnectionState: { type: "Connected", connection: nc },
+        subscribedRooms: { ...state.subscribedRooms, [room]: { type: "Subscribed", messages: "", upgradeTokenAttempts: 1, subscription: sub } },
+      });
       return;
     }
     const room = msg.subject;

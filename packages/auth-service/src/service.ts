@@ -28,6 +28,7 @@ async function run() {
   const sub = nc.subscribe("$SYS.REQ.USER.AUTH");
   console.log(`listening for ${sub.getSubject()} requests...`);
   for await (const msg of sub) {
+    console.log("Auth service got message");
     await msgHandler(msg, enc, dec, userData, issuerKeyPair);
   }
 }
