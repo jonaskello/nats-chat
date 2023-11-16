@@ -40,6 +40,10 @@ This applications main purpose is to demonstrate this authentication and authori
 3. HTTP backend creates a cookie containing a token with username and a signature that can be validated later. This example just includes a plain text signature but in a real-world scenario it would use the token issued by identity provider which is signed by the provider's public key.
 4. The client connects to NATS server via websockets passing along the token from the cookie. Ideally the cookie would be http-only and NATS supports this by the websocket.jwt_cookie setting. However this setting is currently blocked for use with auth callout because the NATS server validates this setting to only be used with some other trust settings that probably are not relevant for auth callout scenario).
 5. The NATS server is configred for auth callout so it calls the auth service defined in the is example, passing along the token.
-6. The auth service gets the token from the request and validates the signature of it. In a real world scenario it would get the public key from the issuer to do this eg. via well-known url for OIDC.
-7. The auth service looks up the permissions for the user specified in the token. These persmissions are stored in a JSON file in this example. In a real-world scenario they would be in a database or some external ACL system.
-8. The auth service replies with a NATS defined JWT containg the allowed subjects to publish and subscribe to.
+6. The auth service issues a JWT without any permissions.
+7. The user tries to join a chat room.
+8. The subscribe operation will return an error since the JWT currently active for the user at the NATS server does not conain permission for the room's subject.
+9. The application catches the subscription permission error, disconnects from NATS, and then connects to NATS while passing all rooms to subscribe to in the `user` field of the connection request. Ideally we would use the `client_info` field for this but I could not find a way to access this field from the `nats.ws` package.
+10. The NATS server receives the new connection request and calls the auth service.
+11. The auth service unpacks the `auth_token` and the `user` field in the connection request.
+12. The subjects specified in `user` fields are compared to user permisions in JSON file and a new JWT is issued with all the requested subscriptions that the user has access to.
