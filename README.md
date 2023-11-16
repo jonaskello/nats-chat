@@ -10,7 +10,19 @@ docker compose up -d
 pnpm serve
 ```
 
-Then goto http://localhost:3040/
+# How to use
+
+1. Goto http://localhost:3040/
+2. Login with user/pass as bob/bob.
+3. Open a second incognito browser window with the same URL to get a separate set of cookies.
+4. Login with user/pass as alice/alice.
+5. In Bob's browser, join the chat room #all1.
+6. In Alice's browser, join the chat room #all1.
+7. In Bob's browser send a message to chat room #all1.
+8. In Alice's browser send a message to chat room #all1.
+9. Verify that both users see each other messages in #all1.
+10. In Bob's browser, try joining the room #alice1 and verify that it fails.
+11. In Alices's browser, try joining the room #bob1 and verify that it fails.
 
 ## What is this?
 
