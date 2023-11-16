@@ -32,16 +32,17 @@ The main point of the example is that the user can only join chat rooms to which
 
 In a real-world scenario there would be tens of thousends of chat rooms and the user may have access to several thousends of them.
 This makes it impractical and inefficent to tell NATS all permissions that the user has up-front since they could get very large.
-The permission are also highly dynamic, since the user at any time can be granted access to a new chat room (granting access is not possible in this example yet).
+The permission are also highly dynamic, since the user at any time can be granted access to a new chat room (creating new rooms and granting access is not possible in this example yet but a usual part of real world chat applications).
 
-However even if the user has access to thousends of chat rooms, he will only join a few of them for each session he uses the application.
-So we would want to tell NATS only about the permissions to the rooms that the user actually tries to join.
+Even if the user has access to thousends of chat rooms, he will only join a few of them for each session he uses the application.
+We would want to tell NATS only about the permissions to the rooms that the user actually tries to join.
 Say the user joins 10 rooms, then we need to tell NATS only about them.
 
-The problem is we do not know at connection-time which rooms the user will want to join so we cannot provide that information at that time (in JWT issed by auth callout at connection time).
+The problem is we do not know at connection-time which rooms the user will want to join so we cannot provide that information at that point in time (in JWT issed by auth callout at connection time).
 For this reason, each time a subscription attempt fails, we need to close the connection and re-connect, sending information about what chat rooms we want access to.
-So if the user currently has joined 3 rooms and want to join a 4th room that would initially fail becuase current JWT only has the 3 current rooms.
-So we disconnect from NATS and then connect again passing all 4 rooms in the client_info field.
+If the user currently has joined 3 rooms and want to join a 4th room that would initially fail becuase current JWT only has the 3 current rooms.
+We disconnect from NATS and then connect again passing all 4 rooms.
+The auth service now issues a new JWT with access to all requested rooms.
 
 ## Flow
 
