@@ -25,6 +25,19 @@ app.post("/login", (req, res, next) => {
   res.send(`Login successful`);
 });
 
+app.get("/login", (req, res, next) => {
+  var cookie = req.cookies[cookieName];
+  if (cookie !== undefined) {
+    console.log("cookie exists", cookie);
+    const parsed = JSON.parse(cookie);
+    res.statusCode = 200;
+    res.send(JSON.stringify({ user: parsed.user }));
+  } else {
+    res.statusCode = 401;
+    res.send(`Not logged in`);
+  }
+});
+
 app.get("/logout", (req, res, next) => {
   res.clearCookie(cookieName);
   res.send(`<div>Logged out</div> <div><a href="/">Continue</a></div>`);

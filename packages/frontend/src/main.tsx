@@ -196,7 +196,7 @@ function Login({ stateRef, setState }: { stateRef: React.MutableRefObject<State>
   const state = stateRef.current;
 
   useEffect(() => {
-    tryLogin(stateRef, setState).catch((error) => console.error(error));
+    tryCookieLogin(stateRef, setState).catch((error) => console.error(error));
   }, []);
 
   if (state.type !== "NotLoggedInState") {
@@ -228,31 +228,48 @@ function Login({ stateRef, setState }: { stateRef: React.MutableRefObject<State>
   );
 }
 
+async function tryCookieLogin(stateRef: React.MutableRefObject<State>, setState: (state: State) => void) {
+  const state = stateRef.current;
+  if (state.type !== "NotLoggedInState") {
+    return;
+  }
+  // Get /login to see if we already have the cookie
+  const resp = await fetch("/login");
+  if (resp.status === 200) {
+    const parsed = await resp.json();
+    setState(initLoggedInState(parsed.user));
+  }
+}
+
 async function tryLogin(stateRef: React.MutableRefObject<State>, setState: (state: State) => void) {
   const state = stateRef.current;
   if (state.type !== "NotLoggedInState") {
     return;
   }
-  // Fetching /login  will cause the cookie to be set
+  // Posting to /login will cause the cookie to be set
   const resp = await fetch("/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ user: state.user, pass: state.pass }),
   });
   if (resp.status === 200) {
-    setState({
-      type: "LoggedInState",
-      loggedInUser: state.user,
-      natsConnectionState: { type: "Connecting" },
-      availableRooms: [],
-      subscribedRooms: {},
-      messageText: "",
-      messageResult: "",
-      selectedRoom: "",
-    });
+    setState(initLoggedInState(state.user));
   } else {
     setState({ ...state, error: resp.status.toString() });
   }
+}
+
+function initLoggedInState(user: string): LoggedInState {
+  return {
+    type: "LoggedInState",
+    loggedInUser: user,
+    natsConnectionState: { type: "Connecting" },
+    availableRooms: [],
+    subscribedRooms: {},
+    messageText: "",
+    messageResult: "",
+    selectedRoom: "",
+  };
 }
 
 function leaveRoom(stateRef: React.MutableRefObject<State>, setState: (state: State) => void): void {
@@ -290,7 +307,7 @@ function joinRoom(stateRef: React.MutableRefObject<State>, setState: (state: Sta
   });
   setState({
     ...state,
-    messageResult: `Joined room ${room}`,
+    messageResult: `Joining room ${room}`,
     messageText: "",
     selectedRoom: room,
     subscribedRooms: { ...state.subscribedRooms, [room]: { type: "Subscribed", subscription: sub, messages: "", upgradeTokenAttempts: 0 } },
