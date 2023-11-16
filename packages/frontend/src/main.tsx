@@ -335,7 +335,7 @@ function createSubscriptionCallback(stateRef: React.MutableRefObject<State | und
       if (state.natsConnectionState.type === "Connected") {
         await state.natsConnectionState.connection.drain();
       }
-      // Set state that we are connecting
+      // Set state to indicate that we are connecting
       setState({ ...state, natsConnectionState: { type: "Connecting" } });
       // We now connect again
       const natsCookieValue = getCookie("myCookie");
