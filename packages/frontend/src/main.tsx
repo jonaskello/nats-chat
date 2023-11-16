@@ -67,11 +67,11 @@ function Main() {
     pass: "",
     error: "",
   });
-  const stateRef = useRef<State>();
+  const stateRef = useRef<State>(state);
   stateRef.current = state;
 
   if (state.type !== "LoggedInState") {
-    return <Login state={state} setState={setState} />;
+    return <Login stateRef={stateRef} setState={setState} />;
   }
 
   return (
@@ -88,9 +88,9 @@ function Main() {
   );
 }
 
-function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State | undefined>; setState: (state: State) => void }) {
+function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State>; setState: (state: State) => void }) {
   const state = stateRef.current;
-  if (state === undefined || state.type !== "LoggedInState") {
+  if (state.type !== "LoggedInState") {
     return <div>state is undefined</div>;
   }
 
@@ -192,7 +192,11 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State |
   );
 }
 
-function Login({ state, setState }: { state: NotLoggedInState; setState: (state: State) => void }) {
+function Login({ stateRef, setState }: { stateRef: React.MutableRefObject<State>; setState: (state: State) => void }) {
+  const state = stateRef.current;
+  if (state.type !== "NotLoggedInState") {
+    return <div>Unexpected state</div>;
+  }
   return (
     <div>
       <table>
@@ -214,39 +218,41 @@ function Login({ state, setState }: { state: NotLoggedInState; setState: (state:
           </tr>
         </tbody>
       </table>
-      <button
-        onClick={async () => {
-          // Fetching /login  will cause the cookie to be set
-          const resp = await fetch("/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user: state.user, pass: state.pass }),
-          });
-          if (resp.status === 200) {
-            setState({
-              type: "LoggedInState",
-              loggedInUser: state.user,
-              natsConnectionState: { type: "Connecting" },
-              availableRooms: [],
-              subscribedRooms: {},
-              messageText: "",
-              messageResult: "",
-              selectedRoom: "",
-            });
-          } else {
-            setState({ ...state, error: resp.status.toString() });
-          }
-        }}
-      >
-        Login
-      </button>
+      <button onClick={async () => tryLogin(stateRef, setState)}>Login</button>
     </div>
   );
 }
 
-function leaveRoom(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void): void {
+async function tryLogin(stateRef: React.MutableRefObject<State>, setState: (state: State) => void) {
   const state = stateRef.current;
-  if (state === undefined || state.type !== "LoggedInState") {
+  if (state.type !== "NotLoggedInState") {
+    return;
+  }
+  // Fetching /login  will cause the cookie to be set
+  const resp = await fetch("/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user: state.user, pass: state.pass }),
+  });
+  if (resp.status === 200) {
+    setState({
+      type: "LoggedInState",
+      loggedInUser: state.user,
+      natsConnectionState: { type: "Connecting" },
+      availableRooms: [],
+      subscribedRooms: {},
+      messageText: "",
+      messageResult: "",
+      selectedRoom: "",
+    });
+  } else {
+    setState({ ...state, error: resp.status.toString() });
+  }
+}
+
+function leaveRoom(stateRef: React.MutableRefObject<State>, setState: (state: State) => void): void {
+  const state = stateRef.current;
+  if (state.type !== "LoggedInState") {
     return;
   }
   const room = state.selectedRoom;
@@ -263,9 +269,9 @@ function leaveRoom(stateRef: React.MutableRefObject<State | undefined>, setState
   return;
 }
 
-function joinRoom(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void): void {
+function joinRoom(stateRef: React.MutableRefObject<State>, setState: (state: State) => void): void {
   const state = stateRef.current;
-  if (state === undefined || state.type !== "LoggedInState") {
+  if (state.type !== "LoggedInState") {
     return;
   }
   const natsConnectionState = state.natsConnectionState;
@@ -286,9 +292,9 @@ function joinRoom(stateRef: React.MutableRefObject<State | undefined>, setState:
   });
 }
 
-function sendMessage(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void): void {
+function sendMessage(stateRef: React.MutableRefObject<State>, setState: (state: State) => void): void {
   const state = stateRef.current;
-  if (state === undefined || state.type !== "LoggedInState") {
+  if (state.type !== "LoggedInState") {
     return;
   }
   const natsConnectionState = state.natsConnectionState;
@@ -306,10 +312,10 @@ function sendMessage(stateRef: React.MutableRefObject<State | undefined>, setSta
   setState({ ...state, messageResult: `Message sent to room ${state.selectedRoom}`, messageText: "" });
 }
 
-function createSubscriptionCallback(stateRef: React.MutableRefObject<State | undefined>, setState: (state: State) => void) {
+function createSubscriptionCallback(stateRef: React.MutableRefObject<State>, setState: (state: State) => void) {
   return async (err: Nats.NatsError | null, msg: Nats.Msg) => {
     const state = stateRef.current;
-    if (state === undefined || state.type !== "LoggedInState") {
+    if (state.type !== "LoggedInState") {
       return;
     }
     if (err) {
