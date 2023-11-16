@@ -56,7 +56,6 @@ async function msgHandler(req: Nats.Msg, enc: TextEncoder, dec: TextDecoder, use
   try {
     Jwt.encodeAuthorizationResponse;
     rc = Jwt.decode<AuthorizationRequestClaims>(dec.decode(token)) as AuthorizationRequestClaims;
-    console.log("rc.nats.connect_opts.auth_token", rc.nats.connect_opts.auth_token);
   } catch (e) {
     return respondMsg(req, "", "", "", (e as Error).message);
   }
