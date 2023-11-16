@@ -194,6 +194,11 @@ function Chat({ stateRef, setState }: { stateRef: React.MutableRefObject<State>;
 
 function Login({ stateRef, setState }: { stateRef: React.MutableRefObject<State>; setState: (state: State) => void }) {
   const state = stateRef.current;
+
+  useEffect(() => {
+    tryLogin(stateRef, setState).catch((error) => console.error(error));
+  }, []);
+
   if (state.type !== "NotLoggedInState") {
     return <div>Unexpected state</div>;
   }
